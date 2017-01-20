@@ -25,6 +25,7 @@ import org.apereo.cas.web.flow.TerminateSessionAction;
 import org.apereo.cas.web.flow.TicketGrantingTicketCheckAction;
 import org.apereo.cas.web.flow.resolver.CasDelegatingWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.CasWebflowEventResolver;
+import org.apereo.cas.web.support.ArgumentExtractor;
 import org.apereo.cas.web.support.CookieRetrievingCookieGenerator;
 import org.pac4j.core.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.webflow.execution.Action;
 
-import java.util.List;
+import java.util.Collections;
 
 /**
  * This is {@link CasSupportActionsConfiguration}.
@@ -62,10 +63,6 @@ public class CasSupportActionsConfiguration {
     @Autowired
     @Qualifier("servicesManager")
     private ServicesManager servicesManager;
-
-    @Autowired
-    @Qualifier("argumentExtractors")
-    private List argumentExtractors;
 
     @Autowired
     @Qualifier("ticketGrantingTicketCookieGenerator")
@@ -113,11 +110,8 @@ public class CasSupportActionsConfiguration {
 
     @Bean
     public Action authenticationViaFormAction() {
-        final InitialAuthenticationAction a = new InitialAuthenticationAction();
-        a.setInitialAuthenticationAttemptWebflowEventResolver(initialAuthenticationAttemptWebflowEventResolver);
-        a.setServiceTicketRequestWebflowEventResolver(serviceTicketRequestWebflowEventResolver);
-        a.setAdaptiveAuthenticationPolicy(this.adaptiveAuthenticationPolicy);
-        return a;
+        return new InitialAuthenticationAction(initialAuthenticationAttemptWebflowEventResolver, serviceTicketRequestWebflowEventResolver,
+                adaptiveAuthenticationPolicy);
     }
 
     @Bean
@@ -127,69 +121,47 @@ public class CasSupportActionsConfiguration {
 
     @Bean
     public Action sendTicketGrantingTicketAction() {
-        final SendTicketGrantingTicketAction bean = new SendTicketGrantingTicketAction();
-        bean.setCreateSsoSessionCookieOnRenewAuthentications(casProperties.getSso().isRenewedAuthn());
-        bean.setCentralAuthenticationService(centralAuthenticationService);
-        bean.setServicesManager(servicesManager);
-        bean.setTicketGrantingTicketCookieGenerator(ticketGrantingTicketCookieGenerator);
-        bean.setAuthenticationSystemSupport(authenticationSystemSupport);
-        return bean;
+        return new SendTicketGrantingTicketAction(centralAuthenticationService, servicesManager, ticketGrantingTicketCookieGenerator,
+                authenticationSystemSupport, casProperties.getSso().isRenewedAuthn());
     }
 
     @RefreshScope
     @Bean
     public Action logoutAction() {
-        final LogoutAction a = new LogoutAction();
-
-        a.setFollowServiceRedirects(casProperties.getLogout().isFollowServiceRedirects());
-        a.setServicesManager(this.servicesManager);
-        return a;
+        return new LogoutAction(webApplicationServiceFactory, servicesManager, casProperties.getLogout().isFollowServiceRedirects());
     }
 
     @Bean
     public Action initializeLoginAction() {
-        final InitializeLoginAction a = new InitializeLoginAction();
-        a.setServicesManager(this.servicesManager);
-        return a;
+        return new InitializeLoginAction(servicesManager);
     }
 
     @RefreshScope
     @Bean
-    public Action initialFlowSetupAction() {
-        final InitialFlowSetupAction bean = new InitialFlowSetupAction();
-        bean.setArgumentExtractors(this.argumentExtractors);
-        bean.setServicesManager(this.servicesManager);
-        bean.setTicketGrantingTicketCookieGenerator(this.ticketGrantingTicketCookieGenerator);
-        bean.setWarnCookieGenerator(this.warnCookieGenerator);
-        return bean;
+    @Autowired
+    public Action initialFlowSetupAction(@Qualifier("argumentExtractor") final ArgumentExtractor argumentExtractor) {
+        return new InitialFlowSetupAction(Collections.singletonList(argumentExtractor),
+                servicesManager,
+                ticketGrantingTicketCookieGenerator,
+                warnCookieGenerator, casProperties);
     }
 
     @RefreshScope
     @Bean
     public Action initialAuthenticationRequestValidationAction() {
-        final InitialAuthenticationRequestValidationAction a =
-                new InitialAuthenticationRequestValidationAction();
-        a.setRankedAuthenticationProviderWebflowEventResolver(rankedAuthenticationProviderWebflowEventResolver);
-        return a;
+        return new InitialAuthenticationRequestValidationAction(rankedAuthenticationProviderWebflowEventResolver);
     }
 
     @RefreshScope
     @Bean
     public Action genericSuccessViewAction() {
-        final GenericSuccessViewAction a = new GenericSuccessViewAction(
-                this.centralAuthenticationService, this.servicesManager, this.webApplicationServiceFactory);
-        a.setRedirectUrl(casProperties.getView().getDefaultRedirectUrl());
-        return a;
+        return new GenericSuccessViewAction(centralAuthenticationService, servicesManager, webApplicationServiceFactory,
+                casProperties.getView().getDefaultRedirectUrl());
     }
 
     @Bean
     public Action generateServiceTicketAction() {
-        final GenerateServiceTicketAction a = new GenerateServiceTicketAction();
-        a.setCentralAuthenticationService(this.centralAuthenticationService);
-        a.setAuthenticationSystemSupport(this.authenticationSystemSupport);
-        a.setTicketRegistrySupport(this.ticketRegistrySupport);
-        a.setServicesManager(this.servicesManager);
-        return a;
+        return new GenerateServiceTicketAction(authenticationSystemSupport, centralAuthenticationService, ticketRegistrySupport, servicesManager);
     }
 
     @Bean
@@ -211,21 +183,11 @@ public class CasSupportActionsConfiguration {
     @Autowired
     @Bean
     public Action terminateSessionAction(@Qualifier("config") final Config pac4jSecurityConfig) {
-        final TerminateSessionAction a = new TerminateSessionAction();
-        a.setCentralAuthenticationService(centralAuthenticationService);
-        a.setTicketGrantingTicketCookieGenerator(ticketGrantingTicketCookieGenerator);
-        a.setWarnCookieGenerator(warnCookieGenerator);
-        a.setPac4jSecurityConfig(pac4jSecurityConfig);
-        return a;
+        return new TerminateSessionAction(centralAuthenticationService, ticketGrantingTicketCookieGenerator, warnCookieGenerator, pac4jSecurityConfig);
     }
 
     @Bean
     public Action serviceWarningAction() {
-        final ServiceWarningAction a = new ServiceWarningAction();
-        a.setCentralAuthenticationService(this.centralAuthenticationService);
-        a.setAuthenticationSystemSupport(this.authenticationSystemSupport);
-        a.setTicketRegistrySupport(this.ticketRegistrySupport);
-        a.setWarnCookieGenerator(this.warnCookieGenerator);
-        return a;
+        return new ServiceWarningAction(centralAuthenticationService, authenticationSystemSupport, ticketRegistrySupport, warnCookieGenerator);
     }
 }

@@ -31,6 +31,7 @@ war {
                 "Implementation-Vendor": project.group,
                 "Created-By": project.group,
                 "Implementation-Date": currentTime,
+                "Specification-Version": rootProject.currentRevision,
                 "Implementation-Version": project.version)
     }
     enabled = !rootProject.publishReleases && !rootProject.publishSnapshots
@@ -44,7 +45,7 @@ dependencies {
     runtime libraries.hibernate
     runtime libraries.groovy
     compile libraries.spring
-    compile libraries.thmyeleaf
+    compile libraries.thymeleaf
     compile libraries.thymeleafdialect
-    compile libraries.thmyeleafboot
+    compile libraries.thymeleafboot
 }

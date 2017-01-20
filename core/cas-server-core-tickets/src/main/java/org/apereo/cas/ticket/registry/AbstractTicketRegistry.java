@@ -33,7 +33,8 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
 
     protected transient Logger logger = LoggerFactory.getLogger(getClass());
 
-    private CipherExecutor cipherExecutor;
+    /** The cipher executor for ticket objects. */
+    protected CipherExecutor cipherExecutor;
 
     /**
      * Default constructor.
@@ -72,7 +73,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
     @Override
     public long sessionCount() {
         try {
-            return getTickets().stream().filter(t -> t instanceof TicketGrantingTicket).count();
+            return getTickets().stream().filter(TicketGrantingTicket.class::isInstance).count();
         } catch (final Throwable t) {
             logger.trace("sessionCount() operation is not implemented by the ticket registry instance {}. "
                             + "Message is: {} Returning unknown as {}",
@@ -84,7 +85,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
     @Override
     public long serviceTicketCount() {
         try {
-            return getTickets().stream().filter(t -> t instanceof ServiceTicket).count();
+            return getTickets().stream().filter(ServiceTicket.class::isInstance).count();
         } catch (final Throwable t) {
             logger.trace("serviceTicketCount() operation is not implemented by the ticket registry instance {}. "
                             + "Message is: {} Returning unknown as {}",
@@ -97,7 +98,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
     public int deleteTicket(final String ticketId) {
         final AtomicInteger count = new AtomicInteger(0);
 
-        if (ticketId == null) {
+        if (StringUtils.isBlank(ticketId)) {
             return count.intValue();
         }
 

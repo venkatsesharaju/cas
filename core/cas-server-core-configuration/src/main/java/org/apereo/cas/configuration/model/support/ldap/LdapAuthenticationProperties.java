@@ -46,8 +46,7 @@ public class LdapAuthenticationProperties extends AbstractLdapProperties {
     private PasswordPolicyProperties passwordPolicy = new PasswordPolicyProperties();
 
     @NestedConfigurationProperty
-    private PrincipalTransformationProperties principalTransformation =
-            new PrincipalTransformationProperties();
+    private PrincipalTransformationProperties principalTransformation = new PrincipalTransformationProperties();
 
     @NestedConfigurationProperty
     private PasswordEncoderProperties passwordEncoder = new PasswordEncoderProperties();
@@ -64,6 +63,26 @@ public class LdapAuthenticationProperties extends AbstractLdapProperties {
     private boolean subtreeSearch = true;
     private String baseDn;
     private String userFilter;
+
+    private boolean enhanceWithEntryResolver = true;
+
+    private Integer order;
+
+    public Integer getOrder() {
+        return order;
+    }
+
+    public void setOrder(final Integer order) {
+        this.order = order;
+    }
+    
+    public boolean isEnhanceWithEntryResolver() {
+        return enhanceWithEntryResolver;
+    }
+
+    public void setEnhanceWithEntryResolver(final boolean enhanceWithEntryResolver) {
+        this.enhanceWithEntryResolver = enhanceWithEntryResolver;
+    }
 
     public String getBaseDn() {
         return baseDn;
@@ -88,7 +107,7 @@ public class LdapAuthenticationProperties extends AbstractLdapProperties {
     public void setSubtreeSearch(final boolean subtreeSearch) {
         this.subtreeSearch = subtreeSearch;
     }
-    
+
     public PasswordPolicyProperties getPasswordPolicy() {
         return passwordPolicy;
     }
@@ -112,7 +131,7 @@ public class LdapAuthenticationProperties extends AbstractLdapProperties {
     public void setPasswordEncoder(final PasswordEncoderProperties passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
     }
-    
+
     public String getDnFormat() {
         return dnFormat;
     }

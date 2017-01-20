@@ -1,13 +1,11 @@
 package org.apereo.cas.web.report;
 
-import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.support.events.dao.CasEvent;
 import org.apereo.cas.support.events.dao.CasEventRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -26,13 +24,7 @@ import java.util.Collection;
 @ConditionalOnClass(value = CasEventRepository.class)
 public class AuthenticationEventsController {
 
-    @Autowired
-    private CasConfigurationProperties casProperties;
-
     private CasEventRepository eventRepository;
-
-    public AuthenticationEventsController() {
-    }
 
     public AuthenticationEventsController(final CasEventRepository eventRepository) {
         this.eventRepository = eventRepository;
@@ -46,9 +38,8 @@ public class AuthenticationEventsController {
      * @return the model and view
      * @throws Exception the exception
      */
-    @RequestMapping(method = RequestMethod.GET)
-    protected ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
+    @GetMapping
+    protected ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         return new ModelAndView("monitoring/viewAuthenticationEvents");
     }
 
@@ -60,12 +51,9 @@ public class AuthenticationEventsController {
      * @return the records
      * @throws Exception the exception
      */
-    @RequestMapping(value = "/getEvents", method = RequestMethod.GET)
+    @GetMapping(value = "/getEvents")
     @ResponseBody
-    public Collection<CasEvent> getRecords(final HttpServletRequest request,
-                                           final HttpServletResponse response)
-            throws Exception {
+    public Collection<CasEvent> getRecords(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         return this.eventRepository.load();
     }
-
 }

@@ -1,14 +1,23 @@
 package org.apereo.cas.support.saml.mdui.web.flow;
 
 import org.apereo.cas.config.CasCoreAuthenticationConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationHandlersConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationMetadataConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPolicyConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPrincipalConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
 import org.apereo.cas.config.CasCoreConfiguration;
+import org.apereo.cas.config.CasCoreHttpConfiguration;
 import org.apereo.cas.config.CasCoreServicesConfiguration;
+import org.apereo.cas.config.CasCoreTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasCoreTicketsConfiguration;
 import org.apereo.cas.config.CasCoreUtilConfiguration;
 import org.apereo.cas.config.CasCoreWebConfiguration;
+import org.apereo.cas.config.CasDefaultServiceTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
 import org.apereo.cas.config.CoreSamlConfiguration;
 import org.apereo.cas.config.SamlConfiguration;
+import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
 import org.apereo.cas.logout.config.CasCoreLogoutConfiguration;
 import org.apereo.cas.support.saml.AbstractOpenSamlTests;
 import org.apereo.cas.support.saml.SamlProtocolConstants;
@@ -47,6 +56,9 @@ import static org.junit.Assert.*;
 @RunWith(SpringRunner.class)
 @SpringBootTest(
         classes = {SamlMetadataUIConfiguration.class,
+                CasDefaultServiceTicketIdGeneratorsConfiguration.class,
+                CasCoreTicketIdGeneratorsConfiguration.class,
+                CasWebApplicationServiceFactoryConfiguration.class,
                 CasCoreAuthenticationConfiguration.class,
                 CasCoreServicesConfiguration.class,
                 CoreSamlConfiguration.class,
@@ -55,7 +67,12 @@ import static org.junit.Assert.*;
                 RefreshAutoConfiguration.class,
                 AopAutoConfiguration.class,
                 CasCookieConfiguration.class,
-                CasCoreAuthenticationConfiguration.class,
+                CasCoreAuthenticationPrincipalConfiguration.class,
+                CasCoreAuthenticationPolicyConfiguration.class,
+                CasCoreAuthenticationMetadataConfiguration.class,
+                CasCoreAuthenticationSupportConfiguration.class,
+                CasCoreAuthenticationHandlersConfiguration.class,
+                CasCoreHttpConfiguration.class,
                 CasCoreTicketsConfiguration.class,
                 CasCoreLogoutConfiguration.class,
                 CasValidationConfiguration.class,

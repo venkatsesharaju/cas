@@ -6,16 +6,14 @@ import com.google.common.base.Throwables;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apereo.cas.authentication.principal.AbstractWebApplicationServiceResponseBuilder;
 import org.apereo.cas.authentication.principal.Response;
+import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
-import org.apereo.cas.authentication.principal.AbstractWebApplicationServiceResponseBuilder;
-import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.services.UnauthorizedServiceException;
 import org.apereo.cas.support.saml.SamlProtocolConstants;
 import org.apereo.cas.support.saml.util.GoogleSaml20ObjectBuilder;
-import org.apereo.cas.util.ApplicationContextProvider;
-
 import org.apereo.cas.util.crypto.PrivateKeyFactoryBean;
 import org.apereo.cas.util.crypto.PublicKeyFactoryBean;
 import org.codehaus.jackson.annotate.JsonIgnore;
@@ -28,7 +26,6 @@ import org.opensaml.saml.saml2.core.StatusCode;
 import org.opensaml.saml.saml2.core.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationContext;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.util.Assert;
@@ -52,25 +49,28 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
 
     private static final long serialVersionUID = -4584732364007702423L;
     private static final Logger LOGGER = LoggerFactory.getLogger(GoogleAccountsServiceResponseBuilder.class);
-    
+
     @JsonIgnore
     private PrivateKey privateKey;
-    
+
     @JsonIgnore
     private PublicKey publicKey;
 
+    @JsonIgnore
+    private ServicesManager servicesManager;
+
     @JsonProperty
     private String publicKeyLocation;
-    
+
     @JsonProperty
     private String privateKeyLocation;
-    
+
     @JsonProperty
     private String keyAlgorithm;
 
     @JsonProperty
     private GoogleSaml20ObjectBuilder samlObjectBuilder;
-    
+
     @JsonProperty
     private int skewAllowance;
 
@@ -80,14 +80,21 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
      * @param privateKeyLocation the private key
      * @param publicKeyLocation  the public key
      * @param keyAlgorithm       the key algorithm
+     * @param servicesManager    the services manager
      * @param samlObjectBuilder  the saml object builder
+     * @param skewAllowance      the skew allowance
      */
     public GoogleAccountsServiceResponseBuilder(final String privateKeyLocation,
                                                 final String publicKeyLocation,
                                                 final String keyAlgorithm,
-                                                final GoogleSaml20ObjectBuilder samlObjectBuilder) {
+                                                final ServicesManager servicesManager,
+                                                final GoogleSaml20ObjectBuilder samlObjectBuilder,
+                                                final int skewAllowance) {
 
-        this(privateKeyLocation, publicKeyLocation, keyAlgorithm, samlObjectBuilder, 0);
+        this(privateKeyLocation, publicKeyLocation, keyAlgorithm, 0);
+        this.samlObjectBuilder = samlObjectBuilder;
+        this.servicesManager = servicesManager;
+        this.skewAllowance = skewAllowance;
     }
 
     /**
@@ -96,18 +103,15 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
      * @param privateKeyLocation the private key
      * @param publicKeyLocation  the public key
      * @param keyAlgorithm       the key algorithm
-     * @param samlObjectBuilder  the saml object builder
      * @param skewAllowance      the skew allowance
      */
     @JsonCreator
     public GoogleAccountsServiceResponseBuilder(@JsonProperty("privateKeyLocation") final String privateKeyLocation,
                                                 @JsonProperty("publicKeyLocation") final String publicKeyLocation,
                                                 @JsonProperty("keyAlgorithm") final String keyAlgorithm,
-                                                @JsonProperty("samlObjectBuilder") final GoogleSaml20ObjectBuilder samlObjectBuilder,
                                                 @JsonProperty("skewAllowance") final int skewAllowance) {
         Assert.notNull(privateKeyLocation);
         Assert.notNull(publicKeyLocation);
-        Assert.notNull(samlObjectBuilder);
 
         this.privateKeyLocation = privateKeyLocation;
         this.publicKeyLocation = publicKeyLocation;
@@ -119,12 +123,10 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
         } catch (final Exception e) {
             throw Throwables.propagate(e);
         }
-
-        this.samlObjectBuilder = samlObjectBuilder;
     }
 
     @Override
-    public Response build(final WebApplicationService webApplicationService, final String ticketId) {
+    public Response build(final WebApplicationService webApplicationService, final String serviceTicket) {
         final GoogleAccountsService service = (GoogleAccountsService) webApplicationService;
 
         final Map<String, String> parameters = new HashMap<>();
@@ -147,14 +149,6 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
     protected String constructSamlResponse(final GoogleAccountsService service) {
         final ZonedDateTime currentDateTime = ZonedDateTime.now(ZoneOffset.UTC);
         final ZonedDateTime notBeforeIssueInstant = ZonedDateTime.parse("2003-04-17T00:46:02Z");
-
-        /*
-         * Must be looked up directly from the context
-         * because the services manager is not serializable
-         * and cannot be class field.
-         */
-        final ApplicationContext context = ApplicationContextProvider.getApplicationContext();
-        final ServicesManager servicesManager = context.getBean("servicesManager", ServicesManager.class);
         final RegisteredService registeredService = servicesManager.findServiceBy(service);
         if (registeredService == null || !registeredService.getAccessStrategy().isServiceAccessAllowed()) {
             throw new UnauthorizedServiceException(UnauthorizedServiceException.CODE_UNAUTHZ_SERVICE);
@@ -218,11 +212,9 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
         final PrivateKeyFactoryBean bean = new PrivateKeyFactoryBean();
 
         if (this.privateKeyLocation.startsWith(ResourceUtils.CLASSPATH_URL_PREFIX)) {
-            bean.setLocation(new ClassPathResource(
-                    org.apache.commons.lang3.StringUtils.removeStart(this.privateKeyLocation, ResourceUtils.CLASSPATH_URL_PREFIX)));
+            bean.setLocation(new ClassPathResource(StringUtils.removeStart(this.privateKeyLocation, ResourceUtils.CLASSPATH_URL_PREFIX)));
         } else if (this.privateKeyLocation.startsWith(ResourceUtils.FILE_URL_PREFIX)) {
-            bean.setLocation(new FileSystemResource(
-                    org.apache.commons.lang3.StringUtils.removeStart(this.privateKeyLocation, ResourceUtils.FILE_URL_PREFIX)));
+            bean.setLocation(new FileSystemResource(StringUtils.removeStart(this.privateKeyLocation, ResourceUtils.FILE_URL_PREFIX)));
         } else {
             bean.setLocation(new FileSystemResource(this.privateKeyLocation));
         }
@@ -248,11 +240,9 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
 
         final PublicKeyFactoryBean bean = new PublicKeyFactoryBean();
         if (this.publicKeyLocation.startsWith(ResourceUtils.CLASSPATH_URL_PREFIX)) {
-            bean.setLocation(new ClassPathResource(
-                    StringUtils.removeStart(this.publicKeyLocation, ResourceUtils.CLASSPATH_URL_PREFIX)));
+            bean.setLocation(new ClassPathResource(StringUtils.removeStart(this.publicKeyLocation, ResourceUtils.CLASSPATH_URL_PREFIX)));
         } else if (this.publicKeyLocation.startsWith(ResourceUtils.FILE_URL_PREFIX)) {
-            bean.setLocation(new FileSystemResource(
-                    StringUtils.removeStart(this.publicKeyLocation, ResourceUtils.FILE_URL_PREFIX)));
+            bean.setLocation(new FileSystemResource(StringUtils.removeStart(this.publicKeyLocation, ResourceUtils.FILE_URL_PREFIX)));
         } else {
             bean.setLocation(new FileSystemResource(this.publicKeyLocation));
         }
@@ -270,7 +260,6 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
                 || StringUtils.isNotBlank(this.publicKeyLocation)
                 || StringUtils.isNotBlank(this.keyAlgorithm);
     }
-
 
     @Override
     public boolean equals(final Object obj) {
@@ -305,5 +294,10 @@ public class GoogleAccountsServiceResponseBuilder extends AbstractWebApplication
                 .append(skewAllowance)
                 .append(samlObjectBuilder)
                 .toHashCode();
+    }
+
+    @Override
+    public boolean supports(final WebApplicationService service) {
+        return service instanceof GoogleAccountsService;
     }
 }

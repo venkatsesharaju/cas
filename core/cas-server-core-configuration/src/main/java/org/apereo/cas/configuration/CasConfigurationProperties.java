@@ -1,7 +1,7 @@
 package org.apereo.cas.configuration;
 
+import org.apereo.cas.configuration.model.core.CasServerProperties;
 import org.apereo.cas.configuration.model.core.HostProperties;
-import org.apereo.cas.configuration.model.core.ServerProperties;
 import org.apereo.cas.configuration.model.core.audit.AuditProperties;
 import org.apereo.cas.configuration.model.core.authentication.AuthenticationProperties;
 import org.apereo.cas.configuration.model.core.authentication.HttpClientProperties;
@@ -33,6 +33,8 @@ import org.apereo.cas.configuration.model.support.saml.googleapps.GoogleAppsProp
 import org.apereo.cas.configuration.model.support.saml.mdui.SamlMetadataUIProperties;
 import org.apereo.cas.configuration.model.support.saml.shibboleth.ShibbolethAttributeResolverProperties;
 import org.apereo.cas.configuration.model.support.saml.sps.SamlServiceProviderProperties;
+import org.apereo.cas.configuration.model.support.sms.TextMagicProperties;
+import org.apereo.cas.configuration.model.support.sms.TwillioProperties;
 import org.apereo.cas.configuration.model.support.themes.ThemeProperties;
 import org.apereo.cas.configuration.model.webapp.LocaleProperties;
 import org.apereo.cas.configuration.model.webapp.WebflowProperties;
@@ -46,7 +48,7 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @author Misagh Moayyed
  * @since 5.0.0
  */
-@ConfigurationProperties("cas")
+@ConfigurationProperties(value = "cas")
 public class CasConfigurationProperties {
 
     @NestedConfigurationProperty
@@ -59,8 +61,7 @@ public class CasConfigurationProperties {
     private HttpClientProperties httpClient = new HttpClientProperties();
 
     @NestedConfigurationProperty
-    private PersonDirPrincipalResolverProperties personDirectory =
-            new PersonDirPrincipalResolverProperties();
+    private PersonDirPrincipalResolverProperties personDirectory = new PersonDirPrincipalResolverProperties();
 
     @NestedConfigurationProperty
     private EventsProperties events = new EventsProperties();
@@ -81,7 +82,7 @@ public class CasConfigurationProperties {
     private RestProperties rest = new RestProperties();
 
     @NestedConfigurationProperty
-    private ServerProperties server = new ServerProperties();
+    private CasServerProperties server = new CasServerProperties();
 
     @NestedConfigurationProperty
     private ServiceRegistryProperties serviceRegistry = new ServiceRegistryProperties();
@@ -112,7 +113,13 @@ public class CasConfigurationProperties {
 
     @NestedConfigurationProperty
     private GoogleRecaptchaProperties googleRecaptcha = new GoogleRecaptchaProperties();
-    
+
+    @NestedConfigurationProperty
+    private TwillioProperties twillio = new TwillioProperties();
+
+    @NestedConfigurationProperty
+    private TextMagicProperties textMagic = new TextMagicProperties();
+
     @NestedConfigurationProperty
     private AcceptableUsagePolicyProperties acceptableUsagePolicy = new AcceptableUsagePolicyProperties();
 
@@ -127,7 +134,7 @@ public class CasConfigurationProperties {
 
     @NestedConfigurationProperty
     private SamlServiceProviderProperties samlSP = new SamlServiceProviderProperties();
-    
+
     @NestedConfigurationProperty
     private MaxmindProperties maxmind = new MaxmindProperties();
 
@@ -233,11 +240,11 @@ public class CasConfigurationProperties {
         this.monitor = monitor;
     }
 
-    public ServerProperties getServer() {
+    public CasServerProperties getServer() {
         return server;
     }
 
-    public void setServer(final ServerProperties server) {
+    public void setServer(final CasServerProperties server) {
         this.server = server;
     }
 
@@ -455,5 +462,21 @@ public class CasConfigurationProperties {
 
     public void setSamlSP(final SamlServiceProviderProperties samlSP) {
         this.samlSP = samlSP;
+    }
+
+    public TwillioProperties getTwillio() {
+        return twillio;
+    }
+
+    public void setTwillio(final TwillioProperties twillio) {
+        this.twillio = twillio;
+    }
+
+    public TextMagicProperties getTextMagic() {
+        return textMagic;
+    }
+
+    public void setTextMagic(final TextMagicProperties textMagic) {
+        this.textMagic = textMagic;
     }
 }

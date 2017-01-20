@@ -13,7 +13,7 @@ be considered to achieve suitable security.
 
 <div class="alert alert-info"><strong>Reporting Issues</strong><p>The security team asks that you please <strong>DO NOT</strong> create publicly-viewable issues or posts to discuss what you may consider a security vulnerability. To report issues properly and learn about how responses are produced, please <a href="/cas/developer/Sec-Vuln-Response.html">see this guide</a>.</p></div>
 
-## Accouncements
+## Announcements
 
 - [Oct 24 2016 Vulnerability Disclosure](https://apereo.github.io/2016/10/24/servlvulndisc/)
 - [Apr 8 2016 Vulnerability Disclosure](https://apereo.github.io/2016/04/08/commonsvulndisc/)
@@ -226,6 +226,15 @@ the CAS protocol in the event that for instance, a parameter is repeated multipl
 
 It is **STRONGLY** recommended that all CAS deployments be evaluated and include this configuration if necessary to prevent
 protocol attacks in situations where the CAS container and environment are unable to block malicious and badly-configured requests.
+
+#### CORS
+
+CAS provides first-class support for enabling HTTP access control (CORS).
+One application of CORS is when a resource makes a cross-origin HTTP request when it requests a resource from a 
+different domain than the one which the first resource itself serves. This should help more with CAS-enabled
+applications are accessed via XHR/Ajax requests. 
+
+To see the relevant list of CAS properties and tune this behavior, please [review this guide](../installation/Configuration-Properties.html).
 
 #### Security Response Headers
 

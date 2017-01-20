@@ -1,7 +1,7 @@
 package org.apereo.cas.services.web;
 
-import org.apereo.cas.services.DefaultServicesManagerImpl;
-import org.apereo.cas.services.InMemoryServiceRegistryDaoImpl;
+import org.apereo.cas.services.DefaultServicesManager;
+import org.apereo.cas.services.InMemoryServiceRegistry;
 import org.apereo.cas.services.RegexRegisteredService;
 import org.apereo.cas.services.RegisteredServiceTestUtils;
 import org.apereo.cas.web.support.WebUtils;
@@ -26,19 +26,16 @@ import static org.junit.Assert.*;
 public class ServiceThemeResolverTests {
 
     private ServiceThemeResolver serviceThemeResolver;
-
-    private DefaultServicesManagerImpl servicesManager;
+    private DefaultServicesManager servicesManager;
+    private Map<String, String> mobileBrowsers;
 
     @Before
     public void setUp() throws Exception {
-        this.servicesManager = new DefaultServicesManagerImpl(new InMemoryServiceRegistryDaoImpl());
+        this.servicesManager = new DefaultServicesManager(new InMemoryServiceRegistry());
 
-        this.serviceThemeResolver = new ServiceThemeResolver();
-        this.serviceThemeResolver.setDefaultThemeName("test");
-        this.serviceThemeResolver.setServicesManager(this.servicesManager);
-        final Map<String, String> mobileBrowsers = new HashMap<>();
+        mobileBrowsers = new HashMap<>();
         mobileBrowsers.put("Mozilla", "theme");
-        this.serviceThemeResolver.setMobileBrowsers(mobileBrowsers);
+        this.serviceThemeResolver = new ServiceThemeResolver("test", servicesManager, mobileBrowsers);
     }
 
     @Test
@@ -71,7 +68,8 @@ public class ServiceThemeResolverTests {
 
     @Test
     public void verifyGetDefaultServiceWithNoServicesManager() {
-        this.serviceThemeResolver.setServicesManager(null);
+        this.serviceThemeResolver = new ServiceThemeResolver("test", null, mobileBrowsers);
+
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("service", "myServiceId");
         request.addHeader(WebUtils.USER_AGENT_HEADER, "Mozilla");

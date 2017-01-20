@@ -1,5 +1,6 @@
 package org.apereo.cas.authentication;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
@@ -35,6 +36,8 @@ public abstract class AbstractAuthenticationHandler implements AuthenticationHan
      */
     private String name;
 
+    private Integer order;
+
     /**
      * Instantiates a new Abstract authentication handler.
      */
@@ -69,5 +72,28 @@ public abstract class AbstractAuthenticationHandler implements AuthenticationHan
 
     public void setServicesManager(final ServicesManager servicesManager) {
         this.servicesManager = servicesManager;
+    }
+
+    /**
+     * Sets order. If order is undefined, generates a random order value.
+     * Since handlers are generally sorted by this order, it's important that
+     * order numbers be unique on a best-effort basis.
+     * @param order the order
+     */
+    public void setOrder(final Integer order) {
+        this.order = order;
+        ensureOrderIsProvidedIfNecessary();
+    }
+
+    @Override
+    public int getOrder() {
+        ensureOrderIsProvidedIfNecessary();
+        return this.order;
+    }
+    
+    private void ensureOrderIsProvidedIfNecessary() {
+        if (this.order == null) {
+            this.order = RandomUtils.nextInt(1, Integer.MAX_VALUE);
+        }
     }
 }

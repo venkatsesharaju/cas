@@ -1,6 +1,5 @@
 package org.apereo.cas.trusted.authentication.storage;
 
-import com.google.common.collect.Sets;
 import com.mongodb.WriteResult;
 import org.apereo.cas.trusted.authentication.api.MultifactorAuthenticationTrustRecord;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -8,9 +7,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
 import javax.persistence.NoResultException;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -22,36 +21,23 @@ import java.util.Set;
  */
 public class MongoDbMultifactorAuthenticationTrustStorage extends BaseMultifactorAuthenticationTrustStorage {
 
-    private String collectionName;
-
-    private boolean dropCollection;
-
-    private MongoOperations mongoTemplate;
+    private final String collectionName;
+    private final MongoOperations mongoTemplate;
 
     /**
      * Instantiates a new Mongo db multifactor authentication trust storage.
      *
      * @param collectionName the collection name
-     * @param dropCollection the drop collection
+     * @param dropCollection id the configured collection should be dropped or recreated
      * @param mongoTemplate  the mongo template
      */
-    public MongoDbMultifactorAuthenticationTrustStorage(final String collectionName, final boolean dropCollection,
-                                                        final MongoOperations mongoTemplate) {
+    public MongoDbMultifactorAuthenticationTrustStorage(final String collectionName, final boolean dropCollection, final MongoOperations mongoTemplate) {
         this.collectionName = collectionName;
-        this.dropCollection = dropCollection;
         this.mongoTemplate = mongoTemplate;
-    }
 
-    /**
-     * Initialize registry post construction.
-     * Will decide if the configured collection should
-     * be dropped and recreated.
-     */
-    @PostConstruct
-    public void init() {
         Assert.notNull(this.mongoTemplate);
 
-        if (this.dropCollection) {
+        if (dropCollection) {
             logger.debug("Dropping database collection: {}", this.collectionName);
             this.mongoTemplate.dropCollection(this.collectionName);
         }
@@ -92,7 +78,7 @@ public class MongoDbMultifactorAuthenticationTrustStorage extends BaseMultifacto
         query.addCriteria(Criteria.where("date").gte(onOrAfterDate));
         final List<MultifactorAuthenticationTrustRecord> results =
                 this.mongoTemplate.find(query, MultifactorAuthenticationTrustRecord.class, this.collectionName);
-        return Sets.newHashSet(results);
+        return new HashSet<>(results);
     }
 
     @Override
@@ -101,7 +87,7 @@ public class MongoDbMultifactorAuthenticationTrustStorage extends BaseMultifacto
         query.addCriteria(Criteria.where("principal").is(principal));
         final List<MultifactorAuthenticationTrustRecord> results =
                 this.mongoTemplate.find(query, MultifactorAuthenticationTrustRecord.class, this.collectionName);
-        return Sets.newHashSet(results);
+        return new HashSet<>(results);
     }
 
     @Override

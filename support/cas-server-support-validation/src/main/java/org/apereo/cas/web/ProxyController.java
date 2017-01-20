@@ -5,6 +5,7 @@ import org.apereo.cas.CasProtocolConstants;
 import org.apereo.cas.CentralAuthenticationService;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.authentication.principal.ServiceFactory;
+import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.services.UnauthorizedServiceException;
 import org.apereo.cas.ticket.AbstractTicketException;
 import org.apereo.cas.ticket.proxy.ProxyTicket;
@@ -12,8 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
@@ -52,16 +52,22 @@ public class ProxyController {
      */
     private static final String MODEL_SERVICE_TICKET = "ticket";
 
-    private CentralAuthenticationService centralAuthenticationService;
-    private ServiceFactory webApplicationServiceFactory;
+    private final CentralAuthenticationService centralAuthenticationService;
+    private final ServiceFactory webApplicationServiceFactory;
 
     @Autowired
     private ApplicationContext context;
 
     /**
      * Instantiates a new proxy controller, with cache seconds set to 0.
+     *
+     * @param centralAuthenticationService the central authentication service
+     * @param webApplicationServiceFactory the web application service factory
      */
-    public ProxyController() {
+    public ProxyController(final CentralAuthenticationService centralAuthenticationService,
+                           final ServiceFactory<WebApplicationService> webApplicationServiceFactory) {
+        this.centralAuthenticationService = centralAuthenticationService;
+        this.webApplicationServiceFactory = webApplicationServiceFactory;
     }
 
     /**
@@ -72,9 +78,9 @@ public class ProxyController {
      * @return ModelAndView containing a view name of either
      * {@code casProxyFailureView} or {@code casProxySuccessView}
      */
-    @RequestMapping(path = "/proxy", method = RequestMethod.GET)
+    @GetMapping(path = "/proxy")
     protected ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response) {
-        final String proxyGrantingTicket = request.getParameter(CasProtocolConstants.PARAMETER_PROXY_GRANTINOG_TICKET);
+        final String proxyGrantingTicket = request.getParameter(CasProtocolConstants.PARAMETER_PROXY_GRANTING_TICKET);
         final Service targetService = getTargetService(request);
 
         if (!StringUtils.hasText(proxyGrantingTicket) || targetService == null) {
@@ -87,8 +93,7 @@ public class ProxyController {
         } catch (final AbstractTicketException e) {
             return generateErrorView(e.getCode(), new Object[]{proxyGrantingTicket}, request);
         } catch (final UnauthorizedServiceException e) {
-            return generateErrorView(CasProtocolConstants.ERROR_CODE_UNAUTHORIZED_SERVICE_PROXY,
-                    new Object[]{targetService}, request);
+            return generateErrorView(CasProtocolConstants.ERROR_CODE_UNAUTHORIZED_SERVICE_PROXY, new Object[]{targetService}, request);
         }
     }
 
@@ -113,19 +118,8 @@ public class ProxyController {
     private ModelAndView generateErrorView(final String code, final Object[] args, final HttpServletRequest request) {
         final ModelAndView modelAndView = new ModelAndView(CONST_PROXY_FAILURE);
         modelAndView.addObject("code", StringEscapeUtils.escapeHtml4(code));
-        modelAndView.addObject("description", 
-                StringEscapeUtils.escapeHtml4(this.context.getMessage(code, args, code, request.getLocale())));
-
+        modelAndView.addObject("description", StringEscapeUtils.escapeHtml4(this.context.getMessage(code, args, code, request.getLocale())));
         return modelAndView;
-    }
-
-    public void setCentralAuthenticationService(
-            final CentralAuthenticationService centralAuthenticationService) {
-        this.centralAuthenticationService = centralAuthenticationService;
-    }
-
-    public void setWebApplicationServiceFactory(final ServiceFactory webApplicationServiceFactory) {
-        this.webApplicationServiceFactory = webApplicationServiceFactory;
     }
 
     public void setApplicationContext(final ApplicationContext context) {

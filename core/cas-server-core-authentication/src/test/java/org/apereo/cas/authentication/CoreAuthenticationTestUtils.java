@@ -1,16 +1,17 @@
 package org.apereo.cas.authentication;
 
-import com.google.common.collect.ImmutableList;
 import org.apereo.cas.authentication.handler.support.SimpleTestUsernamePasswordAuthenticationHandler;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.services.RegisteredService;
+import org.apereo.cas.services.RegisteredServiceAccessStrategy;
 import org.apereo.services.persondir.IPersonAttributeDao;
 import org.apereo.services.persondir.support.StubPersonAttributeDao;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +33,8 @@ public final class CoreAuthenticationTestUtils {
 
     private static final String CONST_PASSWORD = "test1";
 
+    private static final DefaultPrincipalFactory PRINCIPAL_FACTORY = new DefaultPrincipalFactory();
+
     private CoreAuthenticationTestUtils() {
         // do not instantiate
     }
@@ -40,19 +43,15 @@ public final class CoreAuthenticationTestUtils {
         return getCredentialsWithSameUsernameAndPassword(CONST_USERNAME);
     }
 
-    public static UsernamePasswordCredential getCredentialsWithSameUsernameAndPassword(
-            final String username) {
-        return getCredentialsWithDifferentUsernameAndPassword(username,
-                username);
+    public static UsernamePasswordCredential getCredentialsWithSameUsernameAndPassword(final String username) {
+        return getCredentialsWithDifferentUsernameAndPassword(username, username);
     }
 
     public static UsernamePasswordCredential getCredentialsWithDifferentUsernameAndPassword() {
-        return getCredentialsWithDifferentUsernameAndPassword(CONST_USERNAME,
-                CONST_PASSWORD);
+        return getCredentialsWithDifferentUsernameAndPassword(CONST_USERNAME, CONST_PASSWORD);
     }
 
-    public static UsernamePasswordCredential getCredentialsWithDifferentUsernameAndPassword(
-            final String username, final String password) {
+    public static UsernamePasswordCredential getCredentialsWithDifferentUsernameAndPassword(final String username, final String password) {
         final UsernamePasswordCredential usernamePasswordCredentials = new UsernamePasswordCredential();
         usernamePasswordCredentials.setUsername(username);
         usernamePasswordCredentials.setPassword(password);
@@ -64,8 +63,7 @@ public final class CoreAuthenticationTestUtils {
         return getHttpBasedServiceCredentials(CONST_GOOD_URL);
     }
 
-    public static HttpBasedServiceCredential getHttpBasedServiceCredentials(
-            final String url) {
+    public static HttpBasedServiceCredential getHttpBasedServiceCredentials(final String url) {
         try {
             return new HttpBasedServiceCredential(new URL(url),
                     CoreAuthenticationTestUtils.getRegisteredService(url));
@@ -87,10 +85,10 @@ public final class CoreAuthenticationTestUtils {
 
     public static IPersonAttributeDao getAttributeRepository() {
         final Map<String, List<Object>> attributes = new HashMap<>();
-        attributes.put("uid", (List) ImmutableList.of(CONST_USERNAME));
-        attributes.put("cn", (List) ImmutableList.of(CONST_USERNAME.toUpperCase()));
-        attributes.put("givenName", (List) ImmutableList.of(CONST_USERNAME));
-        attributes.put("memberOf", (List) ImmutableList.of("system", "admin", "cas"));
+        attributes.put("uid", Collections.singletonList(CONST_USERNAME));
+        attributes.put("cn", Collections.singletonList(CONST_USERNAME.toUpperCase()));
+        attributes.put("givenName", Collections.singletonList(CONST_USERNAME));
+        attributes.put("memberOf", Arrays.asList("system", "admin", "cas"));
         return new StubPersonAttributeDao(attributes);
     }
 
@@ -99,7 +97,7 @@ public final class CoreAuthenticationTestUtils {
     }
 
     public static Principal getPrincipal(final String name) {
-        return getPrincipal(name, Collections.EMPTY_MAP);
+        return getPrincipal(name, Collections.emptyMap());
     }
 
     public static Principal getPrincipal(final String name, final Map<String, Object> attributes) {
@@ -138,6 +136,10 @@ public final class CoreAuthenticationTestUtils {
         when(service.getName()).thenReturn("service name");
         when(service.getId()).thenReturn(Long.MAX_VALUE);
         when(service.getDescription()).thenReturn("service description");
+
+        final RegisteredServiceAccessStrategy access = mock(RegisteredServiceAccessStrategy.class);
+        when(access.isServiceAccessAllowed()).thenReturn(true);
+        when(service.getAccessStrategy()).thenReturn(access);
         return service;
     }
 
@@ -146,22 +148,23 @@ public final class CoreAuthenticationTestUtils {
         return getAuthenticationResult(support, service, getCredentialsWithSameUsernameAndPassword());
     }
 
-    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support)
-            throws AuthenticationException {
+    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support) throws AuthenticationException {
         return getAuthenticationResult(support, getService(), getCredentialsWithSameUsernameAndPassword());
     }
 
-    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support,
-                                                               final Credential... credentials)
+    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support, final Credential... credentials)
             throws AuthenticationException {
         return getAuthenticationResult(support, getService(), credentials);
     }
 
-    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support,
-                                                               final Service service,
-                                                               final Credential... credentials)
-            throws AuthenticationException {
+    public static AuthenticationResult getAuthenticationResult(final AuthenticationSystemSupport support, final Service service,
+                                                               final Credential... credentials) throws AuthenticationException {
 
         return support.handleAndFinalizeSingleAuthenticationTransaction(service, credentials);
+    }
+
+    public static Principal mockPrincipal(final String attrName, final String... attrValues) {
+        return PRINCIPAL_FACTORY.createPrincipal("user",
+                Collections.singletonMap(attrName, attrValues.length == 1 ? attrValues[0] : Arrays.asList(attrValues)));
     }
 }

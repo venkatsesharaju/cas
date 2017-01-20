@@ -1,7 +1,6 @@
 package org.apereo.cas.services.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.services.RegisteredService;
@@ -15,10 +14,12 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -48,9 +49,9 @@ public class RegisteredServiceRegexAttributeFilterTests {
         this.givenAttributesMap.put("familyName", "Smith");
         this.givenAttributesMap.put("givenName", "John");
         this.givenAttributesMap.put("employeeId", "E1234");
-        this.givenAttributesMap.put("memberOf", Lists.newArrayList("math", "science", "chemistry"));
+        this.givenAttributesMap.put("memberOf", Arrays.asList("math", "science", "chemistry"));
         this.givenAttributesMap.put("arrayAttribute", new String[] {"math", "science", "chemistry"});
-        this.givenAttributesMap.put("setAttribute", new HashSet<>(Lists.newArrayList("math", "science", "chemistry")));
+        this.givenAttributesMap.put("setAttribute", Stream.of("math", "science", "chemistry").collect(Collectors.toSet()));
 
         final Map<String, String> mapAttributes = new HashMap<>();
         mapAttributes.put("uid", "loggedInTestUid");
@@ -93,14 +94,14 @@ public class RegisteredServiceRegexAttributeFilterTests {
     @Test
     public void verifyServiceAttributeFilterAllowedAttributesWithARegexFilter() {
         final ReturnAllowedAttributeReleasePolicy policy = new ReturnAllowedAttributeReleasePolicy();
-        policy.setAllowedAttributes(Lists.newArrayList("attr1", "attr3", "another"));
+        policy.setAllowedAttributes(Arrays.asList("attr1", "attr3", "another"));
         policy.setAttributeFilter(new RegisteredServiceRegexAttributeFilter("v3"));
         final Principal p = mock(Principal.class);
 
         final Map<String, Object> map = new HashMap<>();
         map.put("attr1", "value1");
         map.put("attr2", "value2");
-        map.put("attr3", Lists.newArrayList("v3", "v4"));
+        map.put("attr3", Arrays.asList("v3", "v4"));
 
         when(p.getAttributes()).thenReturn(map);
         when(p.getId()).thenReturn("principalId");

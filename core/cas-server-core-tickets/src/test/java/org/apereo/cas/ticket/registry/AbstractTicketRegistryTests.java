@@ -30,6 +30,9 @@ public abstract class AbstractTicketRegistryTests {
     @Before
     public void setUp() throws Exception {
         this.ticketRegistry = this.getNewTicketRegistry();
+        for (final Ticket ticket : this.ticketRegistry.getTickets()) {
+            this.ticketRegistry.deleteTicket(ticket.getId());
+        }
     }
 
     /**
@@ -87,7 +90,7 @@ public abstract class AbstractTicketRegistryTests {
     }
 
     @Test
-    public void verifyGetExistingTicketWithInproperClass() {
+    public void verifyGetExistingTicketWithImproperClass() {
         try {
             this.ticketRegistry.addTicket(new TicketGrantingTicketImpl("TEST",
                     CoreAuthenticationTestUtils.getAuthentication(),
@@ -130,6 +133,20 @@ public abstract class AbstractTicketRegistryTests {
     }
 
     @Test
+    public void verifyDeleteAllExistingTickets() {
+        try {
+            for (int i = 0; i < TICKETS_IN_REGISTRY; i++) {
+                this.ticketRegistry.addTicket(new TicketGrantingTicketImpl("TEST" + i,
+                        CoreAuthenticationTestUtils.getAuthentication(),
+                        new NeverExpiresExpirationPolicy()));
+            }
+            assertEquals(TICKETS_IN_REGISTRY, this.ticketRegistry.deleteAll());
+        } catch (final Exception e) {
+            fail("Caught an exception. But no exception should have been thrown: " + e.getMessage());
+        }
+    }
+    
+    @Test
     public void verifyDeleteExistingTicket() {
         try {
             this.ticketRegistry.addTicket(new TicketGrantingTicketImpl("TEST",
@@ -168,7 +185,7 @@ public abstract class AbstractTicketRegistryTests {
     @Test
     public void verifyGetTicketsIsZero() {
         try {
-            assertEquals("The size of the empty registry is not zero.", this.ticketRegistry.getTickets().size(), 0);
+            assertEquals("The size of the empty registry is not zero.", 0, this.ticketRegistry.getTickets().size());
         } catch (final Exception e) {
             fail("Caught an exception. But no exception should have been thrown.");
         }
@@ -192,8 +209,8 @@ public abstract class AbstractTicketRegistryTests {
 
         try {
             final Collection<Ticket> ticketRegistryTickets = this.ticketRegistry.getTickets();
-            assertEquals("The size of the registry is not the same as the collection.", ticketRegistryTickets.size(),
-                    tickets.size());
+            assertEquals("The size of the registry is not the same as the collection.",
+                    tickets.size(), ticketRegistryTickets.size());
 
             tickets.stream().filter(ticket -> !ticketRegistryTickets.contains(ticket))
                     .forEach(ticket -> fail("Ticket was added to registry but was not found in retrieval of collection of all tickets."));
@@ -229,6 +246,7 @@ public abstract class AbstractTicketRegistryTests {
             assertNotNull(this.ticketRegistry.getTicket("ST2", ServiceTicket.class));
             assertNotNull(this.ticketRegistry.getTicket("ST3", ServiceTicket.class));
 
+            this.ticketRegistry.updateTicket(tgt);
             assertSame(4, this.ticketRegistry.deleteTicket(tgt.getId()));
 
             assertNull(this.ticketRegistry.getTicket("TGT", TicketGrantingTicket.class));

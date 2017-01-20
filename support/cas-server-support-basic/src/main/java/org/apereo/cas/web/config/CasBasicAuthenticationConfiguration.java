@@ -50,25 +50,18 @@ public class CasBasicAuthenticationConfiguration {
 
     @Bean
     public Action basicAuthenticationAction() {
-        final BasicAuthenticationAction a = new BasicAuthenticationAction();
-
-        a.setAdaptiveAuthenticationPolicy(adaptiveAuthenticationPolicy);
-        a.setInitialAuthenticationAttemptWebflowEventResolver(initialAuthenticationAttemptWebflowEventResolver);
-        a.setServiceTicketRequestWebflowEventResolver(serviceTicketRequestWebflowEventResolver);
-
-        return a;
+        return new BasicAuthenticationAction(initialAuthenticationAttemptWebflowEventResolver, 
+                serviceTicketRequestWebflowEventResolver,
+                adaptiveAuthenticationPolicy);
     }
 
     @ConditionalOnMissingBean(name = "basicAuthenticationWebflowConfigurer")
     @Bean
     public CasWebflowConfigurer basicAuthenticationWebflowConfigurer() {
-        final BasicAuthenticationWebflowConfigurer w =
-                new BasicAuthenticationWebflowConfigurer();
-        w.setLoginFlowDefinitionRegistry(loginFlowDefinitionRegistry);
-        w.setFlowBuilderServices(flowBuilderServices);
-        return w;
+        return new BasicAuthenticationWebflowConfigurer(flowBuilderServices, loginFlowDefinitionRegistry);
     }
 
+    @ConditionalOnMissingBean(name = "basicPrincipalFactory")
     @Bean
     public PrincipalFactory basicPrincipalFactory() {
         return new DefaultPrincipalFactory();

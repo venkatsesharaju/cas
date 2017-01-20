@@ -2,9 +2,9 @@ package org.apereo.cas.support.saml.util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.authentication.principal.WebApplicationService;
+import org.apereo.cas.support.saml.OpenSamlConfigBean;
 import org.apereo.cas.support.saml.SamlUtils;
 import org.apereo.cas.support.saml.authentication.SamlAuthenticationMetaDataPopulator;
-import org.apereo.cas.support.saml.authentication.principal.SamlService;
 import org.apereo.cas.util.DateTimeUtils;
 import org.opensaml.messaging.context.MessageContext;
 import org.opensaml.saml.common.SAMLObject;
@@ -13,7 +13,6 @@ import org.opensaml.saml.saml1.binding.encoding.impl.HTTPSOAP11Encoder;
 import org.opensaml.saml.saml1.core.Assertion;
 import org.opensaml.saml.saml1.core.Attribute;
 import org.opensaml.saml.saml1.core.AttributeStatement;
-import org.opensaml.saml.saml1.core.AttributeValue;
 import org.opensaml.saml.saml1.core.Audience;
 import org.opensaml.saml.saml1.core.AudienceRestrictionCondition;
 import org.opensaml.saml.saml1.core.AuthenticationStatement;
@@ -46,6 +45,10 @@ public class Saml10ObjectBuilder extends AbstractSamlObjectBuilder {
     private static final String CONFIRMATION_METHOD = "urn:oasis:names:tc:SAML:1.0:cm:artifact";
     private static final long serialVersionUID = -4711012620700270554L;
 
+    public Saml10ObjectBuilder(final OpenSamlConfigBean configBean) {
+        super(configBean);
+    }
+
     /**
      * Create a new SAML response object.
      * @param id the id
@@ -62,14 +65,7 @@ public class Saml10ObjectBuilder extends AbstractSamlObjectBuilder {
         samlResponse.setIssueInstant(DateTimeUtils.dateTimeOf(issueInstant));
         samlResponse.setVersion(SAMLVersion.VERSION_11);
         samlResponse.setInResponseTo(recipient);
-        if (service instanceof SamlService) {
-            final SamlService samlService = (SamlService) service;
-
-            final String requestId = samlService.getRequestID();
-            if (StringUtils.isNotBlank(requestId)) {
-                samlResponse.setInResponseTo(requestId);
-            }
-        }
+        setInResponseToForSamlResponseIfNeeded(service, samlResponse);
         return samlResponse;
     }
 
@@ -212,15 +208,8 @@ public class Saml10ObjectBuilder extends AbstractSamlObjectBuilder {
             if (StringUtils.isNotBlank(attributeNamespace)) {
                 attribute.setAttributeNamespace(attributeNamespace);
             }
-            
-            if (e.getValue() instanceof Collection<?>) {
-                final Collection<?> c = (Collection<?>) e.getValue();
-                for (final Object value : c) {
-                    attribute.getAttributeValues().add(newAttributeValue(value, AttributeValue.DEFAULT_ELEMENT_NAME));
-                }
-            } else {
-                attribute.getAttributeValues().add(newAttributeValue(e.getValue(), AttributeValue.DEFAULT_ELEMENT_NAME));
-            }
+
+            addAttributeValuesToSamlAttribute(e.getKey(), e.getValue(), attribute.getAttributeValues());
             attrStatement.getAttributes().add(attribute);
         }
 

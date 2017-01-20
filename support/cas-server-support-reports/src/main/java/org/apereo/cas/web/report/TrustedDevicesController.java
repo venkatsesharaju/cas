@@ -8,8 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
@@ -47,9 +48,8 @@ public class TrustedDevicesController {
      * @return the model and view
      * @throws Exception the exception
      */
-    @RequestMapping(method = RequestMethod.GET)
-    protected ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
+    @GetMapping
+    protected ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
         return new ModelAndView("monitoring/viewTrustedDevices");
     }
 
@@ -59,7 +59,7 @@ public class TrustedDevicesController {
      * @return the records
      * @throws Exception the exception
      */
-    @RequestMapping(value = "/getRecords", method = RequestMethod.GET)
+    @GetMapping(value = "/getRecords")
     @ResponseBody
     public Set<MultifactorAuthenticationTrustRecord> getRecords() throws Exception {
         final LocalDate onOrAfter = LocalDate.now().minus(casProperties.getAuthn().getMfa().getTrusted().getExpiration(),
@@ -76,10 +76,9 @@ public class TrustedDevicesController {
      * @return the integer
      * @throws Exception the exception
      */
-    @RequestMapping(value = "/revokeRecord", method = RequestMethod.POST)
+    @PostMapping(value = "/revokeRecord")
     @ResponseBody
-    public Integer revokeRecord(@RequestParam final String key,
-                                final HttpServletRequest request) throws Exception {
+    public Integer revokeRecord(@RequestParam final String key, final HttpServletRequest request) throws Exception {
         this.mfaTrustEngine.expire(key);
         return HttpStatus.OK.value();
     }

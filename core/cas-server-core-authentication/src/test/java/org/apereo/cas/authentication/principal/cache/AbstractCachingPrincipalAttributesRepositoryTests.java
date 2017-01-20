@@ -1,6 +1,5 @@
 package org.apereo.cas.authentication.principal.cache;
 
-import com.google.common.collect.Lists;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalAttributesRepository;
@@ -10,6 +9,8 @@ import org.apereo.services.persondir.IPersonAttributes;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Parent class for test cases around {@link PrincipalAttributesRepository}.
+ *
  * @author Misagh Moayyed
  * @since 4.2
  */
@@ -38,11 +40,15 @@ public abstract class AbstractCachingPrincipalAttributesRepositoryTests {
     @Before
     public void setUp() {
         attributes = new HashMap<>();
-        attributes.put("a1", Lists.newArrayList("v1", "v2", "v3"));
-        attributes.put(MAIL, Lists.newArrayList("final@example.com"));
-        attributes.put("a6", Lists.newArrayList("v16", "v26", "v63"));
-        attributes.put("a2", Lists.newArrayList("v4"));
-        attributes.put("username", Lists.newArrayList("uid"));
+        attributes.put("a1", Arrays.asList("v1", "v2", "v3"));
+
+        List email = new ArrayList<>();
+        email.add("final@example.com");
+        attributes.put(MAIL, email);
+
+        attributes.put("a6", Arrays.asList("v16", "v26", "v63"));
+        attributes.put("a2", Arrays.asList("v4"));
+        attributes.put("username", Arrays.asList("uid"));
 
         this.dao = mock(IPersonAttributeDao.class);
         final IPersonAttributes person = mock(IPersonAttributes.class);
@@ -50,8 +56,10 @@ public abstract class AbstractCachingPrincipalAttributesRepositoryTests {
         when(person.getAttributes()).thenReturn(attributes);
         when(dao.getPerson(any(String.class))).thenReturn(person);
 
+        email = new ArrayList<>();
+        email.add("final@school.com");
         this.principal = this.principalFactory.createPrincipal("uid",
-                Collections.singletonMap(MAIL, Lists.newArrayList("final@school.com")));
+                Collections.singletonMap(MAIL, email));
     }
 
     protected abstract AbstractPrincipalAttributesRepository getPrincipalAttributesRepository(String unit, long duration);
@@ -84,7 +92,6 @@ public abstract class AbstractCachingPrincipalAttributesRepositoryTests {
     public void verifyMergingStrategyWithNoncollidingAttributeAdder() throws Exception {
         try (AbstractPrincipalAttributesRepository repository = getPrincipalAttributesRepository(TimeUnit.SECONDS.name(), 5)) {
             repository.setMergingStrategy(AbstractPrincipalAttributesRepository.MergingStrategy.ADD);
-
             assertTrue(repository.getAttributes(this.principal).containsKey(MAIL));
             assertEquals(repository.getAttributes(this.principal).get(MAIL).toString(), "final@school.com");
         }
@@ -94,7 +101,6 @@ public abstract class AbstractCachingPrincipalAttributesRepositoryTests {
     public void verifyMergingStrategyWithReplacingAttributeAdder() throws Exception {
         try (AbstractPrincipalAttributesRepository repository = getPrincipalAttributesRepository(TimeUnit.SECONDS.name(), 5)) {
             repository.setMergingStrategy(AbstractPrincipalAttributesRepository.MergingStrategy.REPLACE);
-
             assertTrue(repository.getAttributes(this.principal).containsKey(MAIL));
             assertEquals(repository.getAttributes(this.principal).get(MAIL).toString(), "final@example.com");
         }
@@ -105,9 +111,9 @@ public abstract class AbstractCachingPrincipalAttributesRepositoryTests {
         try (AbstractPrincipalAttributesRepository repository = getPrincipalAttributesRepository(TimeUnit.SECONDS.name(), 5)) {
             repository.setMergingStrategy(AbstractPrincipalAttributesRepository.MergingStrategy.MULTIVALUED);
 
-            assertTrue(repository.getAttributes(this.principal).get(MAIL) instanceof List);
-
-            final List<?> values = (List) repository.getAttributes(this.principal).get(MAIL);
+            final Object mailAttr = repository.getAttributes(this.principal).get(MAIL);
+            assertTrue(mailAttr instanceof List);
+            final List<?> values = (List) mailAttr;
             assertTrue(values.contains("final@example.com"));
             assertTrue(values.contains("final@school.com"));
         }

@@ -18,6 +18,7 @@ import org.springframework.webflow.execution.RequestContext;
  * @since 5.1.0
  */
 public class PrepareDuoWebLoginFormAction extends AbstractAction {
+
     private final VariegatedMultifactorAuthenticationProvider provider;
 
     public PrepareDuoWebLoginFormAction(final VariegatedMultifactorAuthenticationProvider provider) {
@@ -28,8 +29,7 @@ public class PrepareDuoWebLoginFormAction extends AbstractAction {
     protected Event doExecute(final RequestContext requestContext) throws Exception {
         final Principal p = WebUtils.getAuthentication(requestContext).getPrincipal();
 
-        final DuoCredential c = requestContext.getFlowScope().get(CasWebflowConstants.VAR_ID_CREDENTIAL,
-                DuoCredential.class);
+        final DuoCredential c = requestContext.getFlowScope().get(CasWebflowConstants.VAR_ID_CREDENTIAL, DuoCredential.class);
         c.setUsername(p.getId());
 
         WebUtils.getResolvedMultifactorAuthenticationProviders(requestContext).forEach(pr -> {

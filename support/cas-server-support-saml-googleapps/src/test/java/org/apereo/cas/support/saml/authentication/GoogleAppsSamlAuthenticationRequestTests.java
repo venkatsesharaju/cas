@@ -1,20 +1,28 @@
 package org.apereo.cas.support.saml.authentication;
 
 import org.apereo.cas.config.CasCoreAuthenticationConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationHandlersConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationMetadataConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPolicyConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPrincipalConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
 import org.apereo.cas.config.CasCoreConfiguration;
+import org.apereo.cas.config.CasCoreHttpConfiguration;
 import org.apereo.cas.config.CasCoreServicesConfiguration;
+import org.apereo.cas.config.CasCoreTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasCoreTicketsConfiguration;
 import org.apereo.cas.config.CasCoreUtilConfiguration;
 import org.apereo.cas.config.CasCoreWebConfiguration;
+import org.apereo.cas.config.CasDefaultServiceTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
 import org.apereo.cas.config.CoreSamlConfiguration;
+import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
 import org.apereo.cas.logout.config.CasCoreLogoutConfiguration;
 import org.apereo.cas.support.saml.config.SamlGoogleAppsConfiguration;
-import org.apereo.cas.support.saml.util.AbstractSaml20ObjectBuilder;
 import org.apereo.cas.util.CompressionUtils;
 import org.apereo.cas.support.saml.AbstractOpenSamlTests;
 import org.apereo.cas.support.saml.util.GoogleSaml20ObjectBuilder;
-import org.apereo.cas.util.ApplicationContextProvider;
+import org.apereo.cas.util.spring.ApplicationContextProvider;
 import org.apereo.cas.validation.config.CasCoreValidationConfiguration;
 import org.apereo.cas.web.config.CasCookieConfiguration;
 import org.apereo.cas.web.config.CasProtocolViewsConfiguration;
@@ -39,7 +47,17 @@ import static org.junit.Assert.*;
  * @since 4.2.0
  */
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = {SamlGoogleAppsConfiguration.class, CasCoreAuthenticationConfiguration.class,
+@SpringBootTest(classes = {SamlGoogleAppsConfiguration.class, 
+        CasCoreAuthenticationConfiguration.class,
+        CasCoreAuthenticationPolicyConfiguration.class,
+        CasCoreAuthenticationPrincipalConfiguration.class,
+        CasCoreAuthenticationMetadataConfiguration.class,
+        CasCoreAuthenticationSupportConfiguration.class,
+        CasCoreAuthenticationHandlersConfiguration.class,
+        CasDefaultServiceTicketIdGeneratorsConfiguration.class,
+        CasCoreTicketIdGeneratorsConfiguration.class,
+        CasWebApplicationServiceFactoryConfiguration.class,
+        CasCoreHttpConfiguration.class,
         CasCoreServicesConfiguration.class,
         CoreSamlConfiguration.class,
         CasCoreWebConfiguration.class,
@@ -70,7 +88,7 @@ public class GoogleAppsSamlAuthenticationRequestTests extends AbstractOpenSamlTe
     @Test
     public void ensureInflation() throws Exception {
         final String deflator = CompressionUtils.deflate(SAML_REQUEST);
-        final AbstractSaml20ObjectBuilder builder = new GoogleSaml20ObjectBuilder();
+        final GoogleSaml20ObjectBuilder builder = new GoogleSaml20ObjectBuilder(configBean);
         final String msg = builder.decodeSamlAuthnRequest(deflator);
         assertEquals(msg, SAML_REQUEST);
     }

@@ -2,7 +2,6 @@ package org.apereo.cas.adaptors.duo.authn;
 
 import com.duosecurity.client.Http;
 import com.duosecurity.duoweb.DuoWeb;
-import com.google.common.base.Throwables;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -10,8 +9,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.configuration.model.support.mfa.MultifactorAuthenticationProperties;
+import org.apereo.cas.util.http.HttpClient;
 import org.json.JSONObject;
-import org.springframework.http.HttpMethod;
 
 /**
  * An abstraction that encapsulates interaction with Duo 2fa authentication service via its public API.
@@ -23,16 +22,17 @@ import org.springframework.http.HttpMethod;
  * @since 4.2
  */
 public class BasicDuoAuthenticationService extends BaseDuoAuthenticationService {
-    private static final int API_VERSION = 2;
+
     private static final long serialVersionUID = -6690808348975271382L;
 
     /**
      * Creates the duo authentication service.
      *
      * @param duoProperties Duo authentication properties
+     * @param httpClient http client used to run the requests
      */
-    public BasicDuoAuthenticationService(final MultifactorAuthenticationProperties.Duo duoProperties) {
-        super(duoProperties);
+    public BasicDuoAuthenticationService(final MultifactorAuthenticationProperties.Duo duoProperties, final HttpClient httpClient) {
+        super(duoProperties, httpClient);
     }
 
     @Override
@@ -54,9 +54,8 @@ public class BasicDuoAuthenticationService extends BaseDuoAuthenticationService 
         try {
             final DuoDirectCredential credential = DuoDirectCredential.class.cast(crds);
             final Principal p = credential.getAuthentication().getPrincipal();
-            final Http request = getHttpRequest();
-            signHttpRequest(request, p.getId());
-
+            final Http request = buildHttpPostAuthRequest();
+            signHttpAuthRequest(request, p.getId());
             final JSONObject result = (JSONObject) request.executeRequest();
             logger.debug("Duo authentication response: {}", result);
             if ("allow".equalsIgnoreCase(result.getString("result"))) {
@@ -93,7 +92,6 @@ public class BasicDuoAuthenticationService extends BaseDuoAuthenticationService 
         if (obj.getClass() != getClass()) {
             return false;
         }
-        final DuoAuthenticationService rhs = (DuoAuthenticationService) obj;
         return new EqualsBuilder()
                 .appendSuper(super.equals(obj))
                 .isEquals();
@@ -104,24 +102,5 @@ public class BasicDuoAuthenticationService extends BaseDuoAuthenticationService 
         return new HashCodeBuilder()
                 .appendSuper(super.hashCode())
                 .toHashCode();
-    }
-
-    private void signHttpRequest(final Http request, final String id) {
-        try {
-            request.addParam("username", id);
-            request.addParam("factor", "auto");
-            request.addParam("device", "auto");
-            request.signRequest(
-                    duoProperties.getDuoIntegrationKey(),
-                    duoProperties.getDuoSecretKey(), API_VERSION);
-        } catch (final Exception e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    private Http getHttpRequest() {
-        return new Http(HttpMethod.POST.name(),
-                duoProperties.getDuoApiHost(),
-                "/auth/v" + API_VERSION + "/auth");
     }
 }

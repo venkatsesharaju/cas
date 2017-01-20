@@ -2,6 +2,7 @@ package org.apereo.cas.ticket.support;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apereo.cas.ticket.TicketState;
@@ -15,6 +16,7 @@ import org.apereo.cas.ticket.TicketState;
  * @since 3.0.0
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include= JsonTypeInfo.As.PROPERTY)
 public class NeverExpiresExpirationPolicy extends AbstractCasExpirationPolicy {
 
     /** Serializable Unique ID. */
@@ -33,13 +35,13 @@ public class NeverExpiresExpirationPolicy extends AbstractCasExpirationPolicy {
     @JsonIgnore
     @Override
     public Long getTimeToLive() {
-        return new Long(Integer.MAX_VALUE);
+        return (long) Integer.MAX_VALUE;
     }
 
     @JsonIgnore
     @Override
     public Long getTimeToIdle() {
-        return new Long(Integer.MAX_VALUE);
+        return (long) Integer.MAX_VALUE;
     }
     
     @Override

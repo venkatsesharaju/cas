@@ -41,32 +41,22 @@ import java.util.stream.Collectors;
  * @since 4.0.0
  */
 public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthenticationHandler {
-
-    private static final String LDAP_ATTRIBUTE_ENTRY_DN = LdapAuthenticationHandler.class.getSimpleName().concat(".dn");
-
+    
     /**
      * Mapping of LDAP attribute name to principal attribute name.
      */
-
     protected Map<String, String> principalAttributeMap = Collections.emptyMap();
 
     /**
      * List of additional attributes to be fetched but are not principal attributes.
      */
-
     protected List<String> additionalAttributes = Collections.emptyList();
 
     /**
      * Performs LDAP authentication given username/password.
      **/
-    private Authenticator authenticator;
-
-    /**
-     * Component name.
-     */
-
-    private String name = LdapAuthenticationHandler.class.getSimpleName();
-
+    private final Authenticator authenticator;
+    
     /**
      * Name of attribute to be used for resolved principal.
      */
@@ -83,12 +73,6 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
     private String[] authenticatedEntryAttributes = ReturnAttributes.NONE.value();
 
     /**
-     * Default ctor.
-     */
-    public LdapAuthenticationHandler() {
-    }
-
-    /**
      * Creates a new authentication handler that delegates to the given authenticator.
      *
      * @param authenticator Ldaptive authenticator component.
@@ -96,17 +80,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
     public LdapAuthenticationHandler(final Authenticator authenticator) {
         this.authenticator = authenticator;
     }
-
-    /**
-     * Sets the component name. Defaults to simple class name.
-     *
-     * @param name Authentication handler name.
-     */
-    @Override
-    public void setName(final String name) {
-        this.name = name;
-    }
-
+    
     /**
      * Sets the name of the LDAP principal attribute whose value should be used for the
      * principal ID.
@@ -164,13 +138,9 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
         this.additionalAttributes = additionalAttributes;
     }
 
-    public void setAuthenticator(final Authenticator authenticator) {
-        this.authenticator = authenticator;
-    }
-
     @Override
-    protected HandlerResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential upc)
-            throws GeneralSecurityException, PreventedException {
+    protected HandlerResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential upc,
+                                                                 final String originalPassword) throws GeneralSecurityException, PreventedException {
         final AuthenticationResponse response;
         try {
             logger.debug("Attempting LDAP authentication for {}", upc);
@@ -187,19 +157,17 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
 
         final List<MessageDescriptor> messageList;
 
-        final LdapPasswordPolicyConfiguration ldapPasswordPolicyConfiguration =
-                (LdapPasswordPolicyConfiguration) super.getPasswordPolicyConfiguration();
+        final LdapPasswordPolicyConfiguration ldapPasswordPolicyConfiguration = (LdapPasswordPolicyConfiguration) super.getPasswordPolicyConfiguration();
         if (ldapPasswordPolicyConfiguration != null) {
             logger.debug("Applying password policy to {}", response);
-            messageList = ldapPasswordPolicyConfiguration.getAccountStateHandler().handle(
-                    response, ldapPasswordPolicyConfiguration);
+            messageList = ldapPasswordPolicyConfiguration.getAccountStateHandler().handle(response, ldapPasswordPolicyConfiguration);
         } else {
             logger.debug("No ldap password policy configuration is defined");
             messageList = Collections.emptyList();
         }
 
         if (response.getResult()) {
-            logger.debug("LDAP response returned as result. Creating the final LDAP principal");
+            logger.debug("LDAP response returned a result. Creating the final LDAP principal");
             return createHandlerResult(upc, createPrincipal(upc.getUsername(), response.getLdapEntry()), messageList);
         }
 
@@ -209,12 +177,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
         }
         throw new FailedLoginException("Invalid credentials");
     }
-
-    @Override
-    public String getName() {
-        return this.name;
-    }
-
+    
     /**
      * Creates a CAS principal with attributes if the LDAP entry contains principal attributes.
      *
@@ -225,7 +188,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
      * @throws LoginException On security policy errors related to principal creation.
      */
     protected Principal createPrincipal(final String username, final LdapEntry ldapEntry) throws LoginException {
-        logger.debug("Creating LDAP principal for {} based on {}", username, ldapEntry.getDn());
+        logger.debug("Creating LDAP principal for [{}] based on {}", username, ldapEntry.getDn());
         final String id = getLdapPrincipalIdentifier(username, ldapEntry);
 
         final Map<String, Object> attributeMap = new LinkedHashMap<>(this.principalAttributeMap.size());
@@ -242,10 +205,11 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
                 }
             }
         }
-
-        attributeMap.put(LDAP_ATTRIBUTE_ENTRY_DN, ldapEntry.getDn());
-
-        logger.debug("Created LDAP principal for id {} and {} attributes", id, attributeMap.size());
+        final String dnAttribute = getName().concat(".").concat(username);
+        logger.debug("Recording principal DN attribute as {}", dnAttribute);
+        
+        attributeMap.put(dnAttribute, ldapEntry.getDn());
+        logger.debug("Created LDAP principal for id [{}] and {} attributes", id, attributeMap.size());
         return this.principalFactory.createPrincipal(id, attributeMap);
     }
 
@@ -266,7 +230,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
                 logger.warn("The principal id attribute [{}] is not found. CAS cannot construct the final authenticated principal "
                             + "if it's unable to locate the attribute that is designated as the principal id. "
                             + "Attributes available on the LDAP entry are [{}]. Since principal id attribute is not available, CAS will "
-                            + "fallback to construct the principal based on the provided user id: {}",
+                            + "fallback to construct the principal based on the provided user id: [{}]",
                         this.principalIdAttribute, ldapEntry.getAttributes(), username);
                 return username;
             }
@@ -275,10 +239,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
                 if (!this.allowMultiplePrincipalAttributeValues) {
                     throw new LoginException("Multiple principal values are not allowed: " + principalAttr);
                 }
-                logger.warn(
-                        "Found multiple values for principal id attribute: {}. Using first value={}.",
-                        principalAttr,
-                        principalAttr.getStringValue());
+                logger.warn("Found multiple values for principal id attribute: {}. Using first value={}.", principalAttr, principalAttr.getStringValue());
             }
             logger.debug("Retrieved principal id attribute {}", principalAttr.getStringValue());
             return principalAttr.getStringValue();
@@ -293,7 +254,7 @@ public class LdapAuthenticationHandler extends AbstractUsernamePasswordAuthentic
      */
     @PostConstruct
     public void initialize() {
-        /**
+        /*
          * Use a set to ensure we ignore duplicates.
          */
         final Set<String> attributes = new HashSet<>();

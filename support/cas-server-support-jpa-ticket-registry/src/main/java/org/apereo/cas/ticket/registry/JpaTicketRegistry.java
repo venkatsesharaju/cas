@@ -1,16 +1,16 @@
 package org.apereo.cas.ticket.registry;
 
 import org.apereo.cas.ticket.OAuthToken;
-import org.apereo.cas.ticket.accesstoken.AccessToken;
-import org.apereo.cas.ticket.code.OAuthCode;
-import org.apereo.cas.ticket.code.OAuthCodeImpl;
-import org.apereo.cas.ticket.refreshtoken.RefreshToken;
 import org.apereo.cas.ticket.ServiceTicket;
 import org.apereo.cas.ticket.ServiceTicketImpl;
 import org.apereo.cas.ticket.Ticket;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.TicketGrantingTicketImpl;
+import org.apereo.cas.ticket.accesstoken.AccessToken;
+import org.apereo.cas.ticket.code.OAuthCode;
+import org.apereo.cas.ticket.code.OAuthCodeImpl;
 import org.apereo.cas.ticket.proxy.ProxyGrantingTicket;
+import org.apereo.cas.ticket.refreshtoken.RefreshToken;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,19 +38,20 @@ public class JpaTicketRegistry extends AbstractTicketRegistry {
     private static final String TABLE_SERVICE_TICKETS = ServiceTicketImpl.class.getSimpleName();
     private static final String TABLE_TICKET_GRANTING_TICKETS = TicketGrantingTicketImpl.class.getSimpleName();
 
-    private boolean lockTgt = true;
+    private final boolean lockTgt;
 
     @PersistenceContext(unitName = "ticketEntityManagerFactory")
     private EntityManager entityManager;
 
-    public void setLockTgt(final boolean lockTgt) {
-        this.lockTgt = lockTgt;
+    public JpaTicketRegistry(final boolean lockingTgtEnabled) {
+        this.lockTgt = lockingTgtEnabled;
     }
 
     @Override
-    public void updateTicket(final Ticket ticket) {
+    public Ticket updateTicket(final Ticket ticket) {
         this.entityManager.merge(ticket);
         logger.debug("Updated ticket [{}].", ticket);
+        return ticket;
     }
 
     @Override
@@ -78,27 +79,33 @@ public class JpaTicketRegistry extends AbstractTicketRegistry {
     }
 
     @Override
+    public long deleteAll() {
+        int count = 0;
+        count += this.entityManager.createQuery("delete from " + TABLE_SERVICE_TICKETS).executeUpdate();
+        count += this.entityManager.createQuery("delete from " + TABLE_OAUTH_TICKETS).executeUpdate();
+        count += this.entityManager.createQuery("delete from " + TABLE_TICKET_GRANTING_TICKETS).executeUpdate();
+        return count;
+    }
+
+    @Override
     public Ticket getTicket(final String ticketId) {
         return getRawTicket(ticketId);
     }
 
     /**
      * Gets the ticket from the database, as is.
+     * In removals, there is no need to distinguish between TGTs and PGTs since PGTs inherit from TGTs
      *
      * @param ticketId the ticket id
      * @return the raw ticket
      */
     public Ticket getRawTicket(final String ticketId) {
         try {
-            if (ticketId.startsWith(TicketGrantingTicket.PREFIX)
-                    || ticketId.startsWith(ProxyGrantingTicket.PROXY_GRANTING_TICKET_PREFIX)) {
-                // There is no need to distinguish between TGTs and PGTs since PGTs inherit from TGTs
-                return this.entityManager.find(TicketGrantingTicketImpl.class, ticketId,
-                        this.lockTgt ? LockModeType.PESSIMISTIC_WRITE : null);
+            if (ticketId.startsWith(TicketGrantingTicket.PREFIX) || ticketId.startsWith(ProxyGrantingTicket.PROXY_GRANTING_TICKET_PREFIX)) {
+                return this.entityManager.find(TicketGrantingTicketImpl.class, ticketId, this.lockTgt ? LockModeType.PESSIMISTIC_WRITE : null);
             }
 
-            if (ticketId.startsWith(OAuthCode.PREFIX) || ticketId.startsWith(AccessToken.PREFIX)
-                    || ticketId.startsWith(RefreshToken.PREFIX)) {
+            if (ticketId.startsWith(OAuthCode.PREFIX) || ticketId.startsWith(AccessToken.PREFIX) || ticketId.startsWith(RefreshToken.PREFIX)) {
                 return this.entityManager.find(OAuthCodeImpl.class, ticketId);
             }
 
@@ -137,8 +144,7 @@ public class JpaTicketRegistry extends AbstractTicketRegistry {
 
     @Override
     public long serviceTicketCount() {
-        return countToLong(this.entityManager.createQuery("select count(t) from "
-                + TABLE_SERVICE_TICKETS + " t").getSingleResult());
+        return countToLong(this.entityManager.createQuery("select count(t) from " + TABLE_SERVICE_TICKETS + " t").getSingleResult());
     }
 
     @Override
@@ -171,8 +177,7 @@ public class JpaTicketRegistry extends AbstractTicketRegistry {
      * @param clazz    the clazz
      * @return the ticket query result list
      */
-    public <T extends Ticket> List<T> getTicketQueryResultList(final String ticketId, final String query,
-                                                               final Class<T> clazz) {
+    public <T extends Ticket> List<T> getTicketQueryResultList(final String ticketId, final String query, final Class<T> clazz) {
         return this.entityManager.createQuery(query, clazz)
                 .setParameter("id", ticketId)
                 .getResultList();
@@ -255,5 +260,4 @@ public class JpaTicketRegistry extends AbstractTicketRegistry {
     private static long countToLong(final Object result) {
         return ((Number) result).longValue();
     }
-
 }

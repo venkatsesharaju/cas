@@ -32,13 +32,11 @@ public class CasCoreEventsConfiguration {
     
     private static final int INITIAL_CACHE_SIZE = 50;
     private static final long MAX_CACHE_SIZE = 1000;
-
+    
     @Autowired
     @Bean
     public DefaultCasEventListener defaultCasEventListener(@Qualifier("casEventRepository") final CasEventRepository casEventRepository) {
-        final DefaultCasEventListener l = new DefaultCasEventListener();
-        l.setCasEventRepository(casEventRepository);
-        return l;
+        return new DefaultCasEventListener(casEventRepository);
     }
 
     @ConditionalOnMissingBean(name = "casEventRepository")

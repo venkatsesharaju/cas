@@ -3,7 +3,6 @@ package org.apereo.cas.ticket.registry;
 import org.apereo.cas.ticket.Ticket;
 import org.infinispan.Cache;
 
-import javax.annotation.PostConstruct;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -18,25 +17,22 @@ import java.util.concurrent.TimeUnit;
  */
 public class InfinispanTicketRegistry extends AbstractTicketRegistry {
 
-    private Cache cache;
+    private Cache<String, Ticket> cache;
 
     /**
      * Instantiates a new Infinispan ticket registry.
+     *
+     * @param cache the cache
      */
-    public InfinispanTicketRegistry() {
-    }
-
-    /**
-     * Init.
-     */
-    @PostConstruct
-    public void init() {
+    public InfinispanTicketRegistry(final Cache<String, Ticket> cache) {
+        this.cache = cache;
         logger.info("Setting up Infinispan Ticket Registry...");
     }
 
     @Override
-    public void updateTicket(final Ticket ticket) {
+    public Ticket updateTicket(final Ticket ticket) {
         this.cache.put(ticket.getId(), ticket);
+        return ticket;
     }
 
     @Override
@@ -61,8 +57,7 @@ public class InfinispanTicketRegistry extends AbstractTicketRegistry {
         if (ticketId == null) {
             return null;
         }
-        final Ticket ticket = Ticket.class.cast(cache.get(encTicketId));
-        return ticket;
+        return Ticket.class.cast(cache.get(encTicketId));
     }
 
     @Override
@@ -71,6 +66,13 @@ public class InfinispanTicketRegistry extends AbstractTicketRegistry {
         return getTicket(ticketId) == null;
     }
 
+    @Override
+    public long deleteAll() {
+        final int size = this.cache.size();
+        this.cache.clear();
+        return size;
+    }
+    
     /**
      * Retrieve all tickets from the registry.
      * <p>
@@ -83,9 +85,5 @@ public class InfinispanTicketRegistry extends AbstractTicketRegistry {
     @Override
     public Collection<Ticket> getTickets() {
         return decodeTickets(this.cache.values());
-    }
-
-    public void setCache(final Cache<String, Ticket> cache) {
-        this.cache = cache;
     }
 }

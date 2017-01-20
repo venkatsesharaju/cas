@@ -1,28 +1,29 @@
 package org.apereo.cas.support.oauth.web;
 
-import org.apereo.cas.authentication.handler.support.SimpleTestUsernamePasswordAuthenticationHandler;
-import org.apereo.cas.authentication.principal.PrincipalResolver;
 import org.apereo.cas.config.CasCoreAuthenticationConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationHandlersConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationMetadataConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPolicyConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationPrincipalConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
+import org.apereo.cas.config.CasCoreHttpConfiguration;
 import org.apereo.cas.config.CasCoreServicesConfiguration;
+import org.apereo.cas.config.CasCoreTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasCoreTicketsConfiguration;
 import org.apereo.cas.config.CasCoreUtilConfiguration;
+import org.apereo.cas.config.CasDefaultServiceTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasOAuthConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
+import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.logout.config.CasCoreLogoutConfiguration;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.autoconfigure.RefreshAutoConfiguration;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
-
-import javax.annotation.PostConstruct;
-import java.util.Map;
 
 /**
  * This is {@link AbstractOAuth20Tests}.
@@ -34,6 +35,16 @@ import java.util.Map;
 @SpringBootTest(
         classes = {
                 CasCoreAuthenticationConfiguration.class,
+                CasCoreAuthenticationPrincipalConfiguration.class,
+                CasCoreAuthenticationPolicyConfiguration.class,
+                CasCoreAuthenticationMetadataConfiguration.class,
+                CasCoreAuthenticationSupportConfiguration.class,
+                CasCoreAuthenticationHandlersConfiguration.class,
+                CasOAuth20TestAuthenticationEventExecutionPlanConfiguration.class,
+                CasDefaultServiceTicketIdGeneratorsConfiguration.class,
+                CasCoreTicketIdGeneratorsConfiguration.class,
+                CasWebApplicationServiceFactoryConfiguration.class,
+                CasCoreHttpConfiguration.class,
                 CasCoreServicesConfiguration.class,
                 CasOAuthConfiguration.class,
                 CasCoreTicketsConfiguration.class,
@@ -43,21 +54,8 @@ import java.util.Map;
                 CasCoreUtilConfiguration.class})
 @DirtiesContext
 @ContextConfiguration(locations = "classpath:/oauth-context.xml")
-@ComponentScan(basePackages = {"org.pac4j.springframework", "org.apereo.cas"})
 @EnableConfigurationProperties(CasConfigurationProperties.class)
 public abstract class AbstractOAuth20Tests {
 
-    @Autowired
-    @Qualifier("personDirectoryPrincipalResolver")
-    private PrincipalResolver personDirectoryPrincipalResolver;
-
-    @Autowired
-    @Qualifier("authenticationHandlersResolvers")
-    private Map authenticationHandlersResolvers;
-
-    @PostConstruct
-    public void init() {
-        authenticationHandlersResolvers.put(new SimpleTestUsernamePasswordAuthenticationHandler(),
-                personDirectoryPrincipalResolver);
-    }
+    
 }

@@ -5,8 +5,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.infinispan.InfinispanProperties;
 import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.ticket.Ticket;
 import org.apereo.cas.ticket.registry.InfinispanTicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistry;
+import org.infinispan.Cache;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.manager.EmbeddedCacheManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,26 +30,28 @@ public class InfinispanTicketRegistryConfiguration {
     @Autowired
     private CasConfigurationProperties casProperties;
 
-
     @Bean(name = {"infinispanTicketRegistry", "ticketRegistry"})
     public TicketRegistry infinispanTicketRegistry() {
         final InfinispanProperties span = casProperties.getTicket().getRegistry().getInfinispan();
-        final InfinispanTicketRegistry r = new InfinispanTicketRegistry();
+        final InfinispanTicketRegistry r = new InfinispanTicketRegistry(getCache(span));
         r.setCipherExecutor(Beans.newTicketRegistryCipherExecutor(span));
+        return r;
+    }
+
+    private Cache<String, Ticket> getCache(final InfinispanProperties span) {
         final String cacheName = span.getCacheName();
         if (StringUtils.isBlank(cacheName)) {
-            r.setCache(cacheManager().getCache());
+            return cacheManager().getCache();
         } else {
-            r.setCache(cacheManager().getCache(cacheName));
+            return cacheManager().getCache(cacheName);
         }
-        return r;
     }
 
     @Bean
     public EmbeddedCacheManager cacheManager() {
         try {
             final Resource loc = casProperties.getTicket().getRegistry().getInfinispan().getConfigLocation();
-            return new DefaultCacheManager(loc.getFilename());
+            return new DefaultCacheManager(loc.getInputStream());
         } catch (final Exception e) {
             throw Throwables.propagate(e);
         }
