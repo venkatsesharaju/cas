@@ -303,15 +303,17 @@ public final class Beans {
     /**
      * New dn resolver entry resolver.
      *
-     * @param l the ldap settings
+     * @param l       the ldap settings
+     * @param factory the factory
      * @return the entry resolver
      */
-    public static EntryResolver newSearchEntryResolver(final LdapAuthenticationProperties l) {
+    public static EntryResolver newSearchEntryResolver(final LdapAuthenticationProperties l,
+                                                       final PooledConnectionFactory factory) {
         final PooledSearchEntryResolver entryResolver = new PooledSearchEntryResolver();
         entryResolver.setBaseDn(l.getBaseDn());
         entryResolver.setUserFilter(l.getUserFilter());
         entryResolver.setSubtreeSearch(l.isSubtreeSearch());
-        entryResolver.setConnectionFactory(Beans.newPooledConnectionFactory(l));
+        entryResolver.setConnectionFactory(factory);
         return entryResolver;
     }
 
@@ -323,6 +325,7 @@ public final class Beans {
      * @return the connection config
      */
     public static ConnectionConfig newConnectionConfig(final AbstractLdapProperties l) {
+        LOGGER.debug("Creating LDAP connection configuration for {}", l.getLdapUrl());
         final ConnectionConfig cc = new ConnectionConfig();
         cc.setLdapUrl(l.getLdapUrl());
         cc.setUseSSL(l.isUseSsl());
@@ -408,6 +411,7 @@ public final class Beans {
      * @return the pool config
      */
     public static PoolConfig newPoolConfig(final AbstractLdapProperties l) {
+        LOGGER.debug("Creating LDAP connection pool configuration for {}", l.getLdapUrl());
         final PoolConfig pc = new PoolConfig();
         pc.setMinPoolSize(l.getMinPoolSize());
         pc.setMaxPoolSize(l.getMaxPoolSize());
@@ -424,6 +428,7 @@ public final class Beans {
      * @return the connection factory
      */
     public static DefaultConnectionFactory newConnectionFactory(final AbstractLdapProperties l) {
+        LOGGER.debug("Creating LDAP connection factory for {}", l.getLdapUrl());
         final ConnectionConfig cc = newConnectionConfig(l);
         final DefaultConnectionFactory bindCf = new DefaultConnectionFactory(cc);
         if (l.getProviderClass() != null) {
