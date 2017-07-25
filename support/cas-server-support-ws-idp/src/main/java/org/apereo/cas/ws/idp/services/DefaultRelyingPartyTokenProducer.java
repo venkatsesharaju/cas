@@ -58,7 +58,7 @@ public class DefaultRelyingPartyTokenProducer implements WSFederationRelyingPart
         return serializeRelyingPartyToken(rpToken);
     }
 
-    private String serializeRelyingPartyToken(final Element rpToken) {
+    private static String serializeRelyingPartyToken(final Element rpToken) {
         try {
             final StringWriter sw = new StringWriter();
             final Transformer t = TransformerFactory.newInstance().newTransformer();
@@ -70,8 +70,8 @@ public class DefaultRelyingPartyTokenProducer implements WSFederationRelyingPart
         }
     }
 
-    private void mapAttributesToRequestedClaims(final WSFederationRegisteredService service, final SecurityTokenServiceClient sts,
-                                                final Assertion assertion) {
+    private static void mapAttributesToRequestedClaims(final WSFederationRegisteredService service, final SecurityTokenServiceClient sts,
+                                                       final Assertion assertion) {
         try {
             final W3CDOMStreamWriter writer = new W3CDOMStreamWriter();
             writer.writeStartElement("wst", "Claims", STSUtils.WST_NS_05_12);
@@ -125,7 +125,7 @@ public class DefaultRelyingPartyTokenProducer implements WSFederationRelyingPart
             return sts.requestSecurityTokenResponse(service.getAppliesTo());
         } catch (final SoapFault ex) {
             if (ex.getFaultCode() != null && "RequestFailed".equals(ex.getFaultCode().getLocalPart())) {
-                throw new RuntimeException(new ProcessingException(ProcessingException.TYPE.BAD_REQUEST));
+                throw new IllegalArgumentException(new ProcessingException(ProcessingException.TYPE.BAD_REQUEST));
             }
             throw ex;
         } catch (final Exception ex) {

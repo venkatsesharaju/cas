@@ -100,7 +100,7 @@ public class AdminPagesSecurityProperties {
         this.ldap = ldap;
     }
 
-    public class Jaas {
+    public static class Jaas {
         private Resource loginConfig;
         private boolean refreshConfigurationOnStartup = true;
         private String loginContextName;
@@ -130,7 +130,8 @@ public class AdminPagesSecurityProperties {
         }
     }
     
-    public class Ldap extends AbstractLdapAuthenticationProperties {
+    public static class Ldap extends AbstractLdapAuthenticationProperties {
+        private static final long serialVersionUID = -7333244539096172557L;
         @NestedConfigurationProperty
         private LdapAuthorizationProperties ldapAuthz = new LdapAuthorizationProperties();
 
@@ -150,11 +151,15 @@ public class AdminPagesSecurityProperties {
         }
     }
 
-    public class Jdbc extends AbstractJpaProperties {
+    public static class Jdbc extends AbstractJpaProperties {
+        private static final long serialVersionUID = 2625666117528467867L;
         private String rolePrefix;
         private String query;
 
         @NestedConfigurationProperty
+        /**
+         * Password encoder properties.
+         */
         private PasswordEncoderProperties passwordEncoder = new PasswordEncoderProperties();
 
         public String getRolePrefix() {

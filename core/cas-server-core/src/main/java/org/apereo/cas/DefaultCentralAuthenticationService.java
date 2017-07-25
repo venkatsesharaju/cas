@@ -51,7 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +124,7 @@ public class DefaultCentralAuthenticationService extends AbstractCentralAuthenti
         } catch (final InvalidTicketException e) {
             LOGGER.debug("TicketGrantingTicket [{}] cannot be found in the ticket registry.", ticketGrantingTicketId);
         }
-        return Collections.emptyList();
+        return new ArrayList<>(0);
     }
 
     @Audit(
@@ -274,7 +274,7 @@ public class DefaultCentralAuthenticationService extends AbstractCentralAuthenti
         final ServiceTicket serviceTicket = this.ticketRegistry.getTicket(serviceTicketId, ServiceTicket.class);
 
         if (serviceTicket == null) {
-            LOGGER.info("Service ticket [{}] does not exist.", serviceTicketId);
+            LOGGER.warn("Service ticket [{}] does not exist.", serviceTicketId);
             throw new InvalidTicketException(serviceTicketId);
         }
 
@@ -314,7 +314,7 @@ public class DefaultCentralAuthenticationService extends AbstractCentralAuthenti
             LOGGER.debug("Attribute policy [{}] is associated with service [{}]", attributePolicy, registeredService);
 
             final Map<String, Object> attributesToRelease = attributePolicy != null
-                    ? attributePolicy.getAttributes(principal, registeredService) : new HashMap<>();
+                    ? attributePolicy.getAttributes(principal, selectedService, registeredService) : new HashMap<>();
 
             final String principalId = registeredService.getUsernameAttributeProvider().resolveUsername(principal, selectedService, registeredService);
             final Principal modifiedPrincipal = this.principalFactory.createPrincipal(principalId, attributesToRelease);
@@ -358,8 +358,11 @@ public class DefaultCentralAuthenticationService extends AbstractCentralAuthenti
         AuthenticationCredentialsLocalBinder.bindCurrent(authentication);
 
         if (service != null) {
-            final RegisteredService registeredService = this.servicesManager.findServiceBy(service);
-            RegisteredServiceAccessStrategyUtils.ensurePrincipalAccessIsAllowedForService(service, registeredService, authentication);
+            final Service selectedService = resolveServiceFromAuthenticationRequest(service);
+            LOGGER.debug("Resolved service [{}] from the authentication request", selectedService);
+
+            final RegisteredService registeredService = this.servicesManager.findServiceBy(selectedService);
+            RegisteredServiceAccessStrategyUtils.ensurePrincipalAccessIsAllowedForService(selectedService, registeredService, authentication);
         }
 
         final TicketGrantingTicketFactory factory = this.ticketFactory.get(TicketGrantingTicket.class);

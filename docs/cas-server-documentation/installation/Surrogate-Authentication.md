@@ -5,7 +5,7 @@ title: CAS - Surrogate Authentication
 
 # Surrogate Authentication
 
-Surrogate authentication is the ability to authenticate on behalf of another user. The two actors in this case are:
+Surrogate authentication (impersonation) is the ability to authenticate on behalf of another user. The two actors in this case are:
 
 1. The primary admin user whose credentials are verified upon authentication.
 2. The surrogate user, selected by the admin, to which CAS will switch after credential verification and is one that is linked to the single sign-on session.
@@ -45,7 +45,33 @@ To see the relevant list of CAS properties, please [review this guide](Configura
 
 #### LDAP
 
+LDAP support for surrogate authentication is enabled by including the following dependencies in the WAR overlay:
+
+```xml
+<dependency>
+    <groupId>org.apereo.cas</groupId>
+    <artifactId>cas-server-support-surrogate-authentication-ldap</artifactId>
+    <version>${cas.version}</version>
+</dependency>
+```
+
 Surrogate accounts may also be retrieved from an LDAP instance. Such accounts are expected to be found in a configured attribute defined for the primary user in LDAP whose value(s) may be examined against a regular expression pattern of your own choosing to further narrow down the list of authorized surrogate accounts. To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#surrogate-authentication).
+
+#### JDBC
+
+JDBC support for surrogate authentication is enabled by including the following dependencies in the WAR overlay:
+
+```xml
+<dependency>
+    <groupId>org.apereo.cas</groupId>
+    <artifactId>cas-server-support-surrogate-authentication-jdbc</artifactId>
+    <version>${cas.version}</version>
+</dependency>
+```
+
+Aside from the usual database settings, this mode requires the specification of two SQL queries; one that determines eligibility and one that is able to retrieve
+the list of accounts that can be impersonated for a given admin user. To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#jdbc-surrogate-accounts).
+
 
 ### Surrogate Account Selection
 

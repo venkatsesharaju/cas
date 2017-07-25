@@ -14,6 +14,8 @@ you can review the registration record inside the CAS service registry to adjust
 **NOTE:** In the event that special attributes and/or name ids are required for the integration, you are required
 to ensure all such [attributes are properly resolved](Attribute-Resolution.html) and are available to the CAS principal.
 
+<div class="alert alert-warning"><strong>Remember</strong><p>SAML2 service provider integrations listed here simply attempt to automate CAS configuration based on known and documented integration guidelines and recipes provided by the service provider owned by the vendor. These recipes can change and break CAS over time and needless to say, they need to be properly and thoroughly tested as the project itself does not have a subscription to each application to test for correctness. YMMV. If you find an issue with an automated integration strategy here, please <strong>speak up</strong>.</p></div>
+
 Support is enabled by including the following module in the Overlay:
 
 ```xml
@@ -83,10 +85,10 @@ The following SAML SP integrations, as samples, are provided by CAS:
 <a href="https://www.gartner.com/">
 <img src="https://cloud.githubusercontent.com/assets/1205228/25349422/a29a98f6-28d6-11e7-9d10-e286d0080cbe.png" height="48" width="120"></a>
 
+<a href="Google-Apps-Integration.html">
+<img src="https://cloud.githubusercontent.com/assets/1205228/25385497/18e09c84-2979-11e7-94c1-5ad430b3d768.png" height="48" width="120"></a>
+
 </div>
-
-
-
 
 To see the relevant list of CAS properties, please [review this guide](../installation/Configuration-Properties.html#saml-sps).
 

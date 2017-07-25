@@ -34,6 +34,7 @@ import org.springframework.webflow.engine.ActionState;
 import org.springframework.webflow.engine.DecisionState;
 import org.springframework.webflow.engine.EndState;
 import org.springframework.webflow.engine.Flow;
+import org.springframework.webflow.engine.FlowExecutionExceptionHandler;
 import org.springframework.webflow.engine.FlowVariable;
 import org.springframework.webflow.engine.SubflowAttributeMapper;
 import org.springframework.webflow.engine.SubflowState;
@@ -49,6 +50,7 @@ import org.springframework.webflow.engine.support.BeanFactoryVariableValueFactor
 import org.springframework.webflow.engine.support.DefaultTargetStateResolver;
 import org.springframework.webflow.engine.support.DefaultTransitionCriteria;
 import org.springframework.webflow.engine.support.GenericSubflowAttributeMapper;
+import org.springframework.webflow.engine.support.TransitionCriteriaChain;
 import org.springframework.webflow.execution.Action;
 import org.springframework.webflow.execution.ViewFactory;
 import org.springframework.webflow.expression.spel.ActionPropertyAccessor;
@@ -60,10 +62,13 @@ import org.springframework.webflow.expression.spel.ScopeSearchingPropertyAccesso
 
 import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * The {@link AbstractCasWebflowConfigurer} is responsible for
@@ -299,6 +304,12 @@ public abstract class AbstractCasWebflowConfigurer implements CasWebflowConfigur
     }
 
     @Override
+    public Transition createTransition(final String targetState) {
+        final DefaultTargetStateResolver resolver = new DefaultTargetStateResolver(targetState);
+        return new Transition(resolver);
+    }
+    
+    @Override
     public Transition createTransition(final Expression criteriaOutcomeExpression, final String targetState) {
         final TransitionCriteria criteria;
 
@@ -351,12 +362,7 @@ public abstract class AbstractCasWebflowConfigurer implements CasWebflowConfigur
         return parser;
 
     }
-
-    @Override
-    public Transition createTransition(final String targetState) {
-        final DefaultTargetStateResolver resolver = new DefaultTargetStateResolver(targetState);
-        return new Transition(resolver);
-    }
+    
 
     @Override
     public EndState createEndState(final Flow flow, final String id) {
@@ -603,6 +609,51 @@ public abstract class AbstractCasWebflowConfigurer implements CasWebflowConfigur
     }
 
     /**
+     * Clone action state.
+     *
+     * @param source the source
+     * @param target the target
+     */
+    protected void cloneActionState(final ActionState source, final ActionState target) {
+        source.getActionList().forEach(a -> target.getActionList().add(a));
+        source.getExitActionList().forEach(a -> target.getExitActionList().add(a));
+        source.getAttributes().asMap().forEach((k, v) -> target.getAttributes().put(k, v));
+        source.getTransitionSet().forEach(t -> target.getTransitionSet().addAll(t));
+
+        final Field field = ReflectionUtils.findField(target.getExceptionHandlerSet().getClass(), "exceptionHandlers");
+        ReflectionUtils.makeAccessible(field);
+        final List<FlowExecutionExceptionHandler> list = (List<FlowExecutionExceptionHandler>)
+                ReflectionUtils.getField(field, target.getExceptionHandlerSet());
+        list.forEach(h -> source.getExceptionHandlerSet().add(h));
+        
+        target.setDescription(source.getDescription());
+        target.setCaption(source.getCaption());
+    }
+
+    /**
+     * Gets transition execution criteria chain for transition.
+     *
+     * @param def the def
+     * @return the transition execution criteria chain for transition
+     */
+    protected List<TransitionCriteria> getTransitionExecutionCriteriaChainForTransition(final Transition def) {
+
+        if (def.getExecutionCriteria() instanceof TransitionCriteriaChain) {
+            final TransitionCriteriaChain chain = (TransitionCriteriaChain) def.getExecutionCriteria();
+            final Field field = ReflectionUtils.findField(chain.getClass(), "criteriaChain");
+            ReflectionUtils.makeAccessible(field);
+            return (List<TransitionCriteria>) ReflectionUtils.getField(field, chain);
+        }
+
+        if (def.getExecutionCriteria() != null) {
+            final List c = new ArrayList<>();
+            c.add(def.getExecutionCriteria());
+            return c;
+        }
+        return new ArrayList<>();
+    }
+
+    /**
      * Gets expression string from action.
      *
      * @param act the act
@@ -623,5 +674,39 @@ public abstract class AbstractCasWebflowConfigurer implements CasWebflowConfigur
         final Map<String, MultifactorAuthenticationProvider> providerMap =
                 WebUtils.getAvailableMultifactorAuthenticationProviders(this.applicationContext);
         providerMap.forEach((k, v) -> createTransitionForState(state, v.getId(), v.getId()));
+    }
+
+    /**
+     * Create evaluate action for action state action.
+     *
+     * @param flow             the flow
+     * @param actionStateId    the action state id
+     * @param evaluateActionId the evaluate action id
+     * @return the action
+     */
+    protected Action createEvaluateActionForExistingActionState(final Flow flow, final String actionStateId,
+                                                                final String evaluateActionId) {
+        final ActionState action = (ActionState) flow.getState(actionStateId);
+        final List<Action> actions = StreamSupport.stream(action.getActionList().spliterator(), false)
+                .collect(Collectors.toList());
+        final Action evaluateAction = createEvaluateAction(evaluateActionId);
+        actions.add(0, evaluateAction);
+        action.getActionList().forEach(a -> action.getActionList().remove(a));
+        actions.forEach(action.getActionList()::add);
+        return evaluateAction;
+    }
+
+    /**
+     * Clone and create action state.
+     *
+     * @param flow                 the flow
+     * @param actionStateId        the action state id
+     * @param actionStateIdToClone the action state id to clone
+     */
+    protected void cloneAndCreateActionState(final Flow flow, final String actionStateId,
+                                             final String actionStateIdToClone) {
+        final ActionState generateServiceTicket = (ActionState) flow.getState(actionStateIdToClone);
+        final ActionState consentTicketAction = createActionState(flow, actionStateId);
+        cloneActionState(generateServiceTicket, consentTicketAction);
     }
 }

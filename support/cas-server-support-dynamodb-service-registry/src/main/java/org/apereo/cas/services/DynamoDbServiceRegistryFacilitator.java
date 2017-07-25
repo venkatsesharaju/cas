@@ -21,6 +21,7 @@ import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.amazonaws.services.dynamodbv2.util.TableUtils;
 import com.google.common.base.Throwables;
 import org.apereo.cas.configuration.model.support.dynamodb.DynamoDbServiceRegistryProperties;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.util.serialization.StringSerializer;
 import org.apereo.cas.util.services.RegisteredServiceJsonSerializer;
 import org.slf4j.Logger;
@@ -30,7 +31,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +46,7 @@ public class DynamoDbServiceRegistryFacilitator {
     private static final Logger LOGGER = LoggerFactory.getLogger(DynamoDbServiceRegistryFacilitator.class);
     private static final String TABLE_NAME = "DynamoDbCasServices";
 
-    private StringSerializer<RegisteredService> jsonSerializer = new RegisteredServiceJsonSerializer();
+    private final StringSerializer<RegisteredService> jsonSerializer = new RegisteredServiceJsonSerializer();
 
     private enum ColumnNames {
         ID("id"),
@@ -85,7 +85,8 @@ public class DynamoDbServiceRegistryFacilitator {
     public boolean delete(final RegisteredService service) {
         final DeleteItemRequest del = new DeleteItemRequest()
                 .withTableName(TABLE_NAME)
-                .withKey(Collections.singletonMap(ColumnNames.ID.getName(), new AttributeValue(String.valueOf(service.getId()))));
+                .withKey(CollectionUtils.wrap(ColumnNames.ID.getName(),
+                        new AttributeValue(String.valueOf(service.getId()))));
 
         LOGGER.debug("Submitting delete request [{}] for service [{}]", del, service);
         final DeleteItemResult res = amazonDynamoDBClient.deleteItem(del);

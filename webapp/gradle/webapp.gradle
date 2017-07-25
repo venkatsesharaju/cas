@@ -1,6 +1,7 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
 apply plugin: "war"
 apply plugin: "org.springframework.boot"
-apply plugin: "com.moowork.gulp"
 
 description = "Apereo CAS Web Application"
 
@@ -16,18 +17,9 @@ javadoc {
     enabled false
 }
 
-task gulpSetup(dependsOn: ["npmInstall", "installGulp"], description: "Install npm and Gulp") {}
-task gulpRun(dependsOn: gulp_default, description: "Runs Gulp default task") {}
-processResources.dependsOn gulpRun
 
-node {
-    nodeModulesDir = project(":webapp").projectDir
-}
-
-gulp {
-    workDir =  project(":webapp").projectDir
-    colors = true
-    bufferOutput = true
+if (Boolean.getBoolean("enableJRebelAgent")) {
+    war.dependsOn(generateRebel)
 }
 
 springBoot  {
@@ -40,16 +32,27 @@ bootRepackage {
 }
 
 bootRun {
-    dependsOn pathingJar
-    doFirst {
-        classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
+
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        dependsOn pathingJar
+        doFirst {
+          classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
+        }
     }
 
     addResources = true
-    if (Boolean.getBoolean("enableRemoteDebugging")) {
-        jvmArgs = ["-Xrunjdwp:transport=dt_socket,address=5000,server=y,suspend=n"]
-    }
     systemProperties = System.properties
+
+    def list = []
+    if (Boolean.getBoolean("enableRemoteDebugging")) {
+        list.add("-Xrunjdwp:transport=dt_socket,address=5000,server=y,suspend=n")
+    }
+    if (Boolean.getBoolean("enableJRebelAgent")) {
+        def lib = System.getProperty("JREBEL_LIB_PATH")
+        list.add("-agentpath:$lib")
+        list.add("-Drebel.remoting_plugin=true")
+    }
+    jvmArgs = list
 }
 
 war {
@@ -82,6 +85,7 @@ dependencies {
     compile project(":core:cas-server-core-events")
     compile project(":core:cas-server-core-events-configuration")
     compile project(":core:cas-server-core-configuration")
+    compile project(":core:cas-server-core-configuration-metadata-server")
 
     compile project(":support:cas-server-support-throttle")
     compile project(":support:cas-server-support-configuration")
@@ -91,16 +95,17 @@ dependencies {
     compile project(":support:cas-server-support-reports")
     compile project(":support:cas-server-support-themes")
     compile project(":support:cas-server-support-validation")
-    compile project(":support:cas-server-support-pm")
-    
+    compile project(":support:cas-server-support-pm-webflow")
+
     compile project(":webapp:cas-server-webapp-config")
     compile project(":webapp:cas-server-webapp-init")
-    
+
     implementation libraries.pac4j
     implementation libraries.thymeleaf
     implementation libraries.groovy
     implementation libraries.cassecurityfilter
     implementation libraries.metrics
     implementation libraries.bouncycastle
+    runtime libraries.webjars
     compile libraries.springcloudconfigclient
 }

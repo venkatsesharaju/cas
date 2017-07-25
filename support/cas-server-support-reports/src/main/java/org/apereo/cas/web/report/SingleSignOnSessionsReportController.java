@@ -41,14 +41,14 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
     private static final String TICKET_GRANTING_TICKET = "ticketGrantingTicket";
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleSignOnSessionsReportController.class);
 
-    private CasConfigurationProperties casProperties;
+    private final CasConfigurationProperties casProperties;
 
     private enum SsoSessionReportOptions {
         ALL("all"),
         PROXIED("proxied"),
         DIRECT("direct");
 
-        private String type;
+        private final String type;
 
         /**
          * Instantiates a new Sso session report options.
@@ -84,7 +84,7 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
         IS_PROXIED("is_proxied"),
         NUMBER_OF_USES("number_of_uses");
 
-        private String attributeKey;
+        private final String attributeKey;
 
         /**
          * Instantiates a new Sso session attribute keys.
@@ -121,29 +121,30 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
         final ISOStandardDateFormat dateFormat = new ISOStandardDateFormat();
 
         getNonExpiredTicketGrantingTickets().stream().map(TicketGrantingTicket.class::cast)
-                .filter(tgt -> !(option == SsoSessionReportOptions.DIRECT && tgt.getProxiedBy() != null)).forEach(tgt -> {
-            final Authentication authentication = tgt.getAuthentication();
-            final Principal principal = authentication.getPrincipal();
-            final Map<String, Object> sso = new HashMap<>(SsoSessionAttributeKeys.values().length);
-            sso.put(SsoSessionAttributeKeys.AUTHENTICATED_PRINCIPAL.toString(), principal.getId());
-            sso.put(SsoSessionAttributeKeys.AUTHENTICATION_DATE.toString(), authentication.getAuthenticationDate());
-            sso.put(SsoSessionAttributeKeys.AUTHENTICATION_DATE_FORMATTED.toString(),
-                    dateFormat.format(DateTimeUtils.dateOf(authentication.getAuthenticationDate())));
-            sso.put(SsoSessionAttributeKeys.NUMBER_OF_USES.toString(), tgt.getCountOfUses());
-            sso.put(SsoSessionAttributeKeys.TICKET_GRANTING_TICKET.toString(), tgt.getId());
-            sso.put(SsoSessionAttributeKeys.PRINCIPAL_ATTRIBUTES.toString(), principal.getAttributes());
-            sso.put(SsoSessionAttributeKeys.AUTHENTICATION_ATTRIBUTES.toString(), authentication.getAttributes());
-            if (option != SsoSessionReportOptions.DIRECT) {
-                if (tgt.getProxiedBy() != null) {
-                    sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.TRUE);
-                    sso.put(SsoSessionAttributeKeys.PROXIED_BY.toString(), tgt.getProxiedBy().getId());
-                } else {
-                    sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.FALSE);
-                }
-            }
-            sso.put(SsoSessionAttributeKeys.AUTHENTICATED_SERVICES.toString(), tgt.getServices());
-            activeSessions.add(sso);
-        });
+                .filter(tgt -> !(option == SsoSessionReportOptions.DIRECT && tgt.getProxiedBy() != null))
+                .forEach(tgt -> {
+                    final Authentication authentication = tgt.getAuthentication();
+                    final Principal principal = authentication.getPrincipal();
+                    final Map<String, Object> sso = new HashMap<>(SsoSessionAttributeKeys.values().length);
+                    sso.put(SsoSessionAttributeKeys.AUTHENTICATED_PRINCIPAL.toString(), principal.getId());
+                    sso.put(SsoSessionAttributeKeys.AUTHENTICATION_DATE.toString(), authentication.getAuthenticationDate());
+                    sso.put(SsoSessionAttributeKeys.AUTHENTICATION_DATE_FORMATTED.toString(),
+                            dateFormat.format(DateTimeUtils.dateOf(authentication.getAuthenticationDate())));
+                    sso.put(SsoSessionAttributeKeys.NUMBER_OF_USES.toString(), tgt.getCountOfUses());
+                    sso.put(SsoSessionAttributeKeys.TICKET_GRANTING_TICKET.toString(), tgt.getId());
+                    sso.put(SsoSessionAttributeKeys.PRINCIPAL_ATTRIBUTES.toString(), principal.getAttributes());
+                    sso.put(SsoSessionAttributeKeys.AUTHENTICATION_ATTRIBUTES.toString(), authentication.getAttributes());
+                    if (option != SsoSessionReportOptions.DIRECT) {
+                        if (tgt.getProxiedBy() != null) {
+                            sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.TRUE);
+                            sso.put(SsoSessionAttributeKeys.PROXIED_BY.toString(), tgt.getProxiedBy().getId());
+                        } else {
+                            sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.FALSE);
+                        }
+                    }
+                    sso.put(SsoSessionAttributeKeys.AUTHENTICATED_SERVICES.toString(), tgt.getServices());
+                    activeSessions.add(sso);
+                });
         return activeSessions;
     }
 

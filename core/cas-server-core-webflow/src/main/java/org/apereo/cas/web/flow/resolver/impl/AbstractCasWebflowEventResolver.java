@@ -21,6 +21,7 @@ import org.apereo.cas.services.RegisteredServiceMultifactorPolicy;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.web.flow.CasWebflowConstants;
 import org.apereo.cas.web.flow.resolver.CasWebflowEventResolver;
 import org.apereo.cas.web.support.WebUtils;
@@ -40,7 +41,6 @@ import org.springframework.webflow.execution.Event;
 import org.springframework.webflow.execution.RequestContext;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -57,7 +57,7 @@ import java.util.stream.Collectors;
  * @since 5.0.0
  */
 public abstract class AbstractCasWebflowEventResolver implements CasWebflowEventResolver {
-    
+
     private static final String RESOLVED_AUTHENTICATION_EVENTS = "resolvedAuthenticationEvents";
     private static final String DEFAULT_MESSAGE_BUNDLE_PREFIX = "authenticationFailure.";
 
@@ -140,6 +140,17 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
     }
 
     /**
+     * New event based on the id, which contains an error attribute referring to the exception occurred.
+     *
+     * @param id    the id
+     * @param error the error
+     * @return the event
+     */
+    protected Event newEvent(final String id, final Exception error) {
+        return new Event(this, id, new LocalAttributeMap(CasWebflowConstants.TRANSITION_ID_ERROR, error));
+    }
+
+    /**
      * New event based on the given id.
      *
      * @param id the id
@@ -169,16 +180,6 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
 
     }
 
-    /**
-     * New event based on the id, which contains an error attribute referring to the exception occurred.
-     *
-     * @param id    the id
-     * @param error the error
-     * @return the event
-     */
-    protected Event newEvent(final String id, final Exception error) {
-        return new Event(this, id, new LocalAttributeMap(CasWebflowConstants.TRANSITION_ID_ERROR, error));
-    }
 
     /**
      * Gets credential from context.
@@ -209,7 +210,7 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
         final Authentication authentication = authenticationResult.getAuthentication();
         final String ticketGrantingTicket = WebUtils.getTicketGrantingTicketId(context);
         final TicketGrantingTicket tgt = createOrUpdateTicketGrantingTicket(authenticationResult, authentication, ticketGrantingTicket);
-        
+
         WebUtils.putTicketGrantingTicketInScopes(context, tgt);
         WebUtils.putAuthenticationResult(authenticationResult, context);
         WebUtils.putAuthentication(tgt.getAuthentication(), context);
@@ -221,7 +222,7 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
         return newEvent(CasWebflowConstants.TRANSITION_ID_SUCCESS);
     }
 
-    private TicketGrantingTicket createOrUpdateTicketGrantingTicket(final AuthenticationResult authenticationResult, 
+    private TicketGrantingTicket createOrUpdateTicketGrantingTicket(final AuthenticationResult authenticationResult,
                                                                     final Authentication authentication, final String ticketGrantingTicket) {
         final TicketGrantingTicket tgt;
         if (shouldIssueTicketGrantingTicket(authentication, ticketGrantingTicket)) {
@@ -373,8 +374,8 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
                         final String id = provider.getId();
                         final Event event = validateEventIdForMatchingTransitionInContext(id, context,
                                 buildEventAttributeMap(principal, service, provider));
-                        return Collections.singleton(event);
-                    } 
+                        return CollectionUtils.wrapSet(event);
+                    }
                     LOGGER.debug("Provider [{}] could not be verified", provider);
                 } else {
                     LOGGER.debug("Attribute value predicate [{}] could not match the [{}]", predicate, attributeValue);
@@ -525,6 +526,17 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
     }
 
     /**
+     * Resolve service from authentication request service.
+     *
+     * @param context the context
+     * @return the service
+     */
+    protected Service resolveServiceFromAuthenticationRequest(final RequestContext context) {
+        final Service ctxService = WebUtils.getService(context);
+        return resolveServiceFromAuthenticationRequest(ctxService);
+    }
+
+    /**
      * Gets resolved events as attribute.
      *
      * @param context the context
@@ -550,13 +562,13 @@ public abstract class AbstractCasWebflowEventResolver implements CasWebflowEvent
             builder = this.authenticationSystemSupport.handleAuthenticationTransaction(service, builder, credential);
 
             LOGGER.debug("Issuing ticket-granting tickets for service [{}]", service);
-            return Collections.singleton(grantTicketGrantingTicketToAuthenticationResult(context, builder, service));
+            return CollectionUtils.wrapSet(grantTicketGrantingTicketToAuthenticationResult(context, builder, service));
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
             final MessageContext messageContext = context.getMessageContext();
             messageContext.addMessage(new MessageBuilder().error()
                     .code(DEFAULT_MESSAGE_BUNDLE_PREFIX.concat(e.getClass().getSimpleName())).build());
-            return Collections.singleton(new EventFactorySupport().error(this));
+            return CollectionUtils.wrapSet(new EventFactorySupport().error(this));
         }
     }
 }

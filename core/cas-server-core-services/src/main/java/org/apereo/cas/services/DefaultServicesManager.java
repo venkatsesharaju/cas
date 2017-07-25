@@ -2,7 +2,10 @@ package org.apereo.cas.services;
 
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.support.events.service.CasRegisteredServiceDeletedEvent;
+import org.apereo.cas.support.events.service.CasRegisteredServicePreDeleteEvent;
+import org.apereo.cas.support.events.service.CasRegisteredServicePreSaveEvent;
 import org.apereo.cas.support.events.service.CasRegisteredServiceSavedEvent;
+import org.apereo.cas.support.events.service.CasRegisteredServicesLoadedEvent;
 import org.apereo.inspektr.audit.annotation.Audit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -57,6 +61,7 @@ public class DefaultServicesManager implements ServicesManager, Serializable {
     public synchronized RegisteredService delete(final long id) {
         final RegisteredService service = findServiceBy(id);
         if (service != null) {
+            publishEvent(new CasRegisteredServicePreDeleteEvent(this, service));
             this.serviceRegistryDao.delete(service);
             this.services.remove(id);
             this.orderedServices.remove(service);
@@ -92,6 +97,11 @@ public class DefaultServicesManager implements ServicesManager, Serializable {
     }
 
     @Override
+    public RegisteredService findServiceBy(final String serviceId) {
+        return orderedServices.stream().filter(r -> r.matches(serviceId)).findFirst().orElse(null);
+    }
+
+    @Override
     public RegisteredService findServiceBy(final long id) {
         final RegisteredService r = this.services.get(id);
 
@@ -112,11 +122,17 @@ public class DefaultServicesManager implements ServicesManager, Serializable {
         return findServiceBy(service) != null;
     }
 
+    @Override
+    public boolean matchesExistingService(final String service) {
+        return findServiceBy(service) != null;
+    }
+
     @Audit(action = "SAVE_SERVICE",
             actionResolverName = "SAVE_SERVICE_ACTION_RESOLVER",
             resourceResolverName = "SAVE_SERVICE_RESOURCE_RESOLVER")
     @Override
     public synchronized RegisteredService save(final RegisteredService registeredService) {
+        publishEvent(new CasRegisteredServicePreSaveEvent(this, registeredService));
         final RegisteredService r = this.serviceRegistryDao.save(registeredService);
         this.services.put(r.getId(), r);
         this.orderedServices = new ConcurrentSkipListSet<>(this.services.values());
@@ -133,30 +149,22 @@ public class DefaultServicesManager implements ServicesManager, Serializable {
     @PostConstruct
     public void load() {
         LOGGER.debug("Loading services from [{}]", this.serviceRegistryDao);
-        this.services = this.serviceRegistryDao.load().stream()
+        this.services = this.serviceRegistryDao.load()
+                .stream()
                 .collect(Collectors.toConcurrentMap(r -> {
                     LOGGER.debug("Adding registered service [{}]", r.getServiceId());
                     return r.getId();
-                }, r -> r, (r, s) -> s == null ? r : s));
+                }, Function.identity(), (r, s) -> s == null ? r : s));
         this.orderedServices = new ConcurrentSkipListSet<>(this.services.values());
+        publishEvent(new CasRegisteredServicesLoadedEvent(this, this.orderedServices));
         LOGGER.info("Loaded [{}] service(s) from [{}].", this.services.size(), this.serviceRegistryDao);
-    }
-
-    @Override
-    public RegisteredService findServiceBy(final String serviceId) {
-        return orderedServices.stream().filter(r -> r.matches(serviceId)).findFirst().orElse(null);
-    }
-
-    @Override
-    public boolean matchesExistingService(final String service) {
-        return findServiceBy(service) != null;
     }
 
     @Override
     public int count() {
         return services.size();
     }
-    
+
     private void publishEvent(final ApplicationEvent event) {
         if (this.eventPublisher != null) {
             this.eventPublisher.publishEvent(event);

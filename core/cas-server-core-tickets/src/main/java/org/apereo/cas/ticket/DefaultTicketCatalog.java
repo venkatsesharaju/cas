@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  */
 public class DefaultTicketCatalog implements TicketCatalog {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultTicketCatalog.class);
-    
+
     private final Map<String, TicketDefinition> ticketMetadataMap = new HashMap<>();
 
     public DefaultTicketCatalog() {
@@ -27,13 +27,34 @@ public class DefaultTicketCatalog implements TicketCatalog {
 
     @Override
     public TicketDefinition find(final String ticketId) {
-        return ticketMetadataMap.values().stream().filter(md -> ticketId.startsWith(md.getPrefix())).findFirst().orElse(null);
+        final TicketDefinition defn = ticketMetadataMap.values()
+                .stream()
+                .filter(md -> ticketId.startsWith(md.getPrefix()))
+                .findFirst()
+                .orElse(null);
+        if (defn == null) {
+            LOGGER.error("Ticket definition for [{}] cannot be found in the ticket catalog "
+                    + "which only contains the following ticket types: [{}]",
+                    ticketId, ticketMetadataMap.keySet());
+        }
+        return defn;
     }
 
     @Override
     public TicketDefinition find(final Ticket ticket) {
         LOGGER.debug("Locating ticket definition for ticket [{}]", ticket);
         return find(ticket.getPrefix());
+    }
+
+    @Override
+    public Collection<TicketDefinition> find(final Class<Ticket> ticketClass) {
+        final List list = ticketMetadataMap.values()
+                .stream()
+                .filter(t -> t.getImplementationClass().isInstance(ticketClass))
+                .collect(Collectors.toList());
+        OrderComparator.sort(list);
+        LOGGER.debug("Located all registered and known sorted ticket definitions [{}] that match [{}]", list, ticketClass);
+        return list;
     }
 
     @Override
@@ -61,14 +82,4 @@ public class DefaultTicketCatalog implements TicketCatalog {
         return list;
     }
 
-    @Override
-    public Collection<TicketDefinition> find(final Class<Ticket> ticketClass) {
-        final List list = ticketMetadataMap.values()
-                .stream()
-                .filter(t -> t.getImplementationClass().isInstance(ticketClass))
-                .collect(Collectors.toList());
-        OrderComparator.sort(list);
-        LOGGER.debug("Located all registered and known sorted ticket definitions [{}] that match [{}]", list, ticketClass);
-        return list;
-    }
 }

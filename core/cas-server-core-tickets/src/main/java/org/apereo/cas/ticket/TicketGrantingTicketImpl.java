@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.ticket.proxy.ProxyGrantingTicket;
@@ -23,7 +22,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -278,37 +276,18 @@ public class TicketGrantingTicketImpl extends AbstractTicket implements TicketGr
         list.add(getAuthentication());
 
         if (getGrantingTicket() == null) {
-            return Collections.unmodifiableList(list);
+            return new ArrayList<>(list);
         }
 
         list.addAll(getGrantingTicket().getChainedAuthentications());
-        return Collections.unmodifiableList(list);
+        return new ArrayList<>(list);
     }
 
     @Override
     public Service getProxiedBy() {
         return this.proxiedBy;
     }
-
-    @Override
-    public boolean equals(final Object object) {
-        if (object == null) {
-            return false;
-        }
-        if (object == this) {
-            return true;
-        }
-        if (!(object instanceof TicketGrantingTicket)) {
-            return false;
-        }
-
-        final Ticket ticket = (Ticket) object;
-
-        return new EqualsBuilder()
-                .append(ticket.getId(), this.getId())
-                .isEquals();
-    }
-
+    
     @Override
     public String getPrefix() {
         return TicketGrantingTicket.PREFIX;

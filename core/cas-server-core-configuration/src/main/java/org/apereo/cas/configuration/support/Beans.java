@@ -1,6 +1,8 @@
 package org.apereo.cas.configuration.support;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -18,7 +20,7 @@ import org.apereo.cas.authentication.handler.PrincipalNameTransformer;
 import org.apereo.cas.configuration.model.core.authentication.PasswordEncoderProperties;
 import org.apereo.cas.configuration.model.core.authentication.PrincipalAttributesProperties;
 import org.apereo.cas.configuration.model.core.authentication.PrincipalTransformationProperties;
-import org.apereo.cas.configuration.model.core.util.CryptographyProperties;
+import org.apereo.cas.configuration.model.core.util.EncryptionRandomizedSigningJwtCryptographyProperties;
 import org.apereo.cas.configuration.model.support.ConnectionPoolingProperties;
 import org.apereo.cas.configuration.model.support.jpa.AbstractJpaProperties;
 import org.apereo.cas.configuration.model.support.jpa.DatabaseProperties;
@@ -26,6 +28,7 @@ import org.apereo.cas.configuration.model.support.jpa.JpaConfigDataHolder;
 import org.apereo.cas.configuration.model.support.ldap.AbstractLdapAuthenticationProperties;
 import org.apereo.cas.configuration.model.support.ldap.AbstractLdapProperties;
 import org.apereo.cas.configuration.model.support.mongo.AbstractMongoInstanceProperties;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.util.cipher.DefaultTicketCipherExecutor;
 import org.apereo.cas.util.cipher.NoOpCipherExecutor;
 import org.apereo.cas.util.crypto.DefaultPasswordEncoder;
@@ -34,6 +37,7 @@ import org.apereo.cas.util.transforms.PrefixSuffixPrincipalNameTransformer;
 import org.apereo.services.persondir.IPersonAttributeDao;
 import org.apereo.services.persondir.support.NamedStubPersonAttributeDao;
 import org.codehaus.groovy.control.CompilerConfiguration;
+import org.hibernate.cfg.Environment;
 import org.ldaptive.ActivePassiveConnectionStrategy;
 import org.ldaptive.BindConnectionInitializer;
 import org.ldaptive.BindRequest;
@@ -113,7 +117,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,28 +148,38 @@ public final class Beans {
 
     /**
      * Get new data source, from JNDI lookup or created via direct configuration
-     * of Hikari pool. If jpaProperties contains dataSourceName a lookup will be
-     * attempted If datasource not found via JNDI it will be
+     * of Hikari pool.
+     * <p>
+     * If jpaProperties contains {@link AbstractJpaProperties#getDataSourceName()} a lookup will be
+     * attempted. If the DataSource is not found via JNDI then CAS will attempt to
+     * configure a Hikari connection pool.
+     * <p>
+     * Since the datasource beans are {@link org.springframework.cloud.context.config.annotation.RefreshScope},
+     * they will be a proxied by Spring
+     * and on some application servers there have been classloading issues. A workaround
+     * for this is to use the {@link AbstractJpaProperties#isDataSourceProxy()} setting and then the dataSource will be
+     * wrapped in an application level class. If that is an issue, don't do it.
+     *
+     * If user wants to do lookup as resource, they may include <code>java:/comp/env</code>
+     * in <code>dataSourceName</code> and put resource reference in web.xml
+     * otherwise <code>dataSourceName</code> is used as JNDI name.
      *
      * @param jpaProperties the jpa properties
      * @return the data source
      */
     public static DataSource newDataSource(final AbstractJpaProperties jpaProperties) {
-        final HikariDataSource bean = new HikariDataSource();
-
         final String dataSourceName = jpaProperties.getDataSourceName();
+        final boolean proxyDataSource = jpaProperties.isDataSourceProxy();
+
         if (StringUtils.isNotBlank(dataSourceName)) {
             try {
                 final JndiDataSourceLookup dsLookup = new JndiDataSourceLookup();
-                /*
-                 if user wants to do lookup as resource, they may include java:/comp/env
-                 in dataSourceName and put resource reference in web.xml
-                 otherwise dataSourceName is used as JNDI name
-                  */
                 dsLookup.setResourceRef(false);
                 final DataSource containerDataSource = dsLookup.getDataSource(dataSourceName);
-                bean.setDataSource(containerDataSource);
-                return bean;
+                if (!proxyDataSource) {
+                    return containerDataSource;
+                }
+                return new DataSourceProxy(containerDataSource);
             } catch (final DataSourceLookupFailureException e) {
                 LOGGER.warn("Lookup of datasource [{}] failed due to {} "
                         + "falling back to configuration via JPA properties.", dataSourceName, e.getMessage());
@@ -173,23 +187,23 @@ public final class Beans {
         }
 
         try {
+            final HikariDataSource bean = new HikariDataSource();
             if (StringUtils.isNotBlank(jpaProperties.getDriverClass())) {
                 bean.setDriverClassName(jpaProperties.getDriverClass());
             }
             bean.setJdbcUrl(jpaProperties.getUrl());
             bean.setUsername(jpaProperties.getUser());
             bean.setPassword(jpaProperties.getPassword());
-
+            bean.setLoginTimeout((int) jpaProperties.getPool().getMaxWait());
             bean.setMaximumPoolSize(jpaProperties.getPool().getMaxSize());
             bean.setMinimumIdle(jpaProperties.getPool().getMinSize());
             bean.setIdleTimeout(jpaProperties.getIdleTimeout());
             bean.setLeakDetectionThreshold(jpaProperties.getLeakThreshold());
-            bean.setInitializationFailTimeout(jpaProperties.isFailFast() ? 1 : 0);
+            bean.setInitializationFailFast(jpaProperties.isFailFast());
             bean.setIsolateInternalQueries(jpaProperties.isIsolateInternalQueries());
             bean.setConnectionTestQuery(jpaProperties.getHealthQuery());
             bean.setAllowPoolSuspension(jpaProperties.getPool().isSuspension());
             bean.setAutoCommit(jpaProperties.isAutocommit());
-            bean.setLoginTimeout(Long.valueOf(jpaProperties.getPool().getMaxWait()).intValue());
             bean.setValidationTimeout(jpaProperties.getPool().getTimeoutMillis());
             return bean;
         } catch (final Exception e) {
@@ -221,7 +235,7 @@ public final class Beans {
         final ThreadPoolExecutorFactoryBean bean = new ThreadPoolExecutorFactoryBean();
         bean.setCorePoolSize(config.getMinSize());
         bean.setMaxPoolSize(config.getMaxSize());
-        bean.setKeepAliveSeconds(Long.valueOf(config.getMaxWait()).intValue());
+        bean.setKeepAliveSeconds((int) config.getMaxWait());
         return bean;
     }
 
@@ -235,27 +249,32 @@ public final class Beans {
     public static LocalContainerEntityManagerFactoryBean newHibernateEntityManagerFactoryBean(final JpaConfigDataHolder config,
                                                                                               final AbstractJpaProperties jpaProperties) {
         final LocalContainerEntityManagerFactoryBean bean = new LocalContainerEntityManagerFactoryBean();
-
         bean.setJpaVendorAdapter(config.getJpaVendorAdapter());
 
         if (StringUtils.isNotBlank(config.getPersistenceUnitName())) {
             bean.setPersistenceUnitName(config.getPersistenceUnitName());
         }
         bean.setPackagesToScan(config.getPackagesToScan());
-        bean.setDataSource(config.getDataSource());
+
+        if (config.getDataSource() != null) {
+            bean.setDataSource(config.getDataSource());
+        }
 
         final Properties properties = new Properties();
-        properties.put("hibernate.dialect", jpaProperties.getDialect());
-        properties.put("hibernate.hbm2ddl.auto", jpaProperties.getDdlAuto());
-        properties.put("hibernate.jdbc.batch_size", jpaProperties.getBatchSize());
+        properties.put(Environment.DIALECT, jpaProperties.getDialect());
+        properties.put(Environment.HBM2DDL_AUTO, jpaProperties.getDdlAuto());
+        properties.put(Environment.STATEMENT_BATCH_SIZE, jpaProperties.getBatchSize());
         if (StringUtils.isNotBlank(jpaProperties.getDefaultCatalog())) {
-            properties.put("hibernate.default_catalog", jpaProperties.getDefaultCatalog());
+            properties.put(Environment.DEFAULT_CATALOG, jpaProperties.getDefaultCatalog());
         }
         if (StringUtils.isNotBlank(jpaProperties.getDefaultSchema())) {
-            properties.put("hibernate.default_schema", jpaProperties.getDefaultSchema());
+            properties.put(Environment.DEFAULT_SCHEMA, jpaProperties.getDefaultSchema());
         }
+        properties.put(Environment.ENABLE_LAZY_LOAD_NO_TRANS, Boolean.TRUE);
+        properties.put(Environment.FORMAT_SQL, Boolean.TRUE);
+        properties.putAll(jpaProperties.getProperties());
         bean.setJpaProperties(properties);
-        bean.getJpaPropertyMap().put("hibernate.enable_lazy_load_no_trans", Boolean.TRUE);
+        
         return bean;
     }
 
@@ -452,7 +471,18 @@ public final class Beans {
         return entryResolver;
     }
 
+    /**
+     * Transform principal attributes list into map map.
+     *
+     * @param list the list
+     * @return the map
+     */
+    public static Map<String, Collection<String>> transformPrincipalAttributesListIntoMap(final List<String> list) {
+        final Multimap<String, String> map = transformPrincipalAttributesListIntoMultiMap(list);
+        return CollectionUtils.wrap(map);
+    }
 
+    
     /**
      * Transform principal attributes into map.
      * Items in the list are defined in the syntax of "cn", or "cn:commonName" for virtual renaming and maps.
@@ -460,9 +490,9 @@ public final class Beans {
      * @param list the list
      * @return the map
      */
-    public static Map<String, String> transformPrincipalAttributesListIntoMap(final List<String> list) {
-        final Map<String, String> attributes = new HashMap<>();
+    public static Multimap<String, String> transformPrincipalAttributesListIntoMultiMap(final List<String> list) {
 
+        final Multimap<String, String> multimap = ArrayListMultimap.create();
         if (list.isEmpty()) {
             LOGGER.debug("No principal attributes are defined");
         } else {
@@ -473,14 +503,14 @@ public final class Beans {
                     final String name = attrCombo[0].trim();
                     final String value = attrCombo[1].trim();
                     LOGGER.debug("Mapped principal attribute name [{}] to [{}]", name, value);
-                    attributes.put(name, value);
+                    multimap.put(name, value);
                 } else {
                     LOGGER.debug("Mapped principal attribute name [{}]", attributeName);
-                    attributes.put(attributeName, attributeName);
+                    multimap.put(attributeName, attributeName);
                 }
             });
         }
-        return attributes;
+        return multimap;
     }
 
     /**
@@ -757,7 +787,7 @@ public final class Beans {
     public static Duration newDuration(final String length) {
         try {
             if (NumberUtils.isCreatable(length)) {
-                return Duration.ofSeconds(Long.valueOf(length));
+                return Duration.ofSeconds(Long.parseLong(length));
             }
             return Duration.parse(length);
         } catch (final Exception e) {
@@ -771,7 +801,7 @@ public final class Beans {
      * @param registry the registry
      * @return the cipher executor
      */
-    public static CipherExecutor newTicketRegistryCipherExecutor(final CryptographyProperties registry) {
+    public static CipherExecutor newTicketRegistryCipherExecutor(final EncryptionRandomizedSigningJwtCryptographyProperties registry) {
         return newTicketRegistryCipherExecutor(registry, false);
     }
 
@@ -782,7 +812,8 @@ public final class Beans {
      * @param forceIfBlankKeys the force if blank keys
      * @return the cipher executor
      */
-    public static CipherExecutor newTicketRegistryCipherExecutor(final CryptographyProperties registry, final boolean forceIfBlankKeys) {
+    public static CipherExecutor newTicketRegistryCipherExecutor(final EncryptionRandomizedSigningJwtCryptographyProperties registry,
+                                                                 final boolean forceIfBlankKeys) {
         if (StringUtils.isNotBlank(registry.getEncryption().getKey())
                 && StringUtils.isNotBlank(registry.getEncryption().getKey())
                 || forceIfBlankKeys) {
@@ -840,7 +871,7 @@ public final class Beans {
      * @return Search filter with parameters applied.
      */
     public static SearchFilter newLdaptiveSearchFilter(final String filterQuery) {
-        return newLdaptiveSearchFilter(filterQuery, Collections.emptyList());
+        return newLdaptiveSearchFilter(filterQuery, new ArrayList<>(0));
     }
 
     /**
@@ -935,7 +966,7 @@ public final class Beans {
      * @return the search executor
      */
     public static SearchExecutor newLdaptiveSearchExecutor(final String baseDn, final String filterQuery) {
-        return newLdaptiveSearchExecutor(baseDn, filterQuery, Collections.emptyList());
+        return newLdaptiveSearchExecutor(baseDn, filterQuery, new ArrayList<>(0));
     }
 
     /**
@@ -948,14 +979,14 @@ public final class Beans {
         try {
             final MongoClientOptionsFactoryBean bean = new MongoClientOptionsFactoryBean();
             bean.setWriteConcern(WriteConcern.valueOf(mongo.getWriteConcern()));
-            bean.setHeartbeatConnectTimeout(Long.valueOf(mongo.getTimeout()).intValue());
-            bean.setHeartbeatSocketTimeout(Long.valueOf(mongo.getTimeout()).intValue());
+            bean.setHeartbeatConnectTimeout((int) mongo.getTimeout());
+            bean.setHeartbeatSocketTimeout((int) mongo.getTimeout());
             bean.setMaxConnectionLifeTime(mongo.getConns().getLifetime());
             bean.setSocketKeepAlive(mongo.isSocketKeepAlive());
-            bean.setMaxConnectionIdleTime(Long.valueOf(mongo.getIdleTimeout()).intValue());
+            bean.setMaxConnectionIdleTime((int) mongo.getIdleTimeout());
             bean.setConnectionsPerHost(mongo.getConns().getPerHost());
-            bean.setSocketTimeout(Long.valueOf(mongo.getTimeout()).intValue());
-            bean.setConnectTimeout(Long.valueOf(mongo.getTimeout()).intValue());
+            bean.setSocketTimeout((int) mongo.getTimeout());
+            bean.setConnectTimeout((int) mongo.getTimeout());
             bean.afterPropertiesSet();
             return bean;
         } catch (final Exception e) {
@@ -987,7 +1018,7 @@ public final class Beans {
         return new MongoClient(new ServerAddress(
                 mongo.getHost(),
                 mongo.getPort()),
-                Collections.singletonList(
+                CollectionUtils.wrap(
                         MongoCredential.createCredential(
                                 mongo.getUserId(),
                                 mongo.getDatabaseName(),

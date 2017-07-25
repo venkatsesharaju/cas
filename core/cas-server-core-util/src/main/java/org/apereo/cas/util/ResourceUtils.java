@@ -25,6 +25,8 @@ import java.util.Enumeration;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
+import static org.springframework.util.ResourceUtils.CLASSPATH_URL_PREFIX;
+
 /**
  * Utility class to assist with resource operations.
  *
@@ -32,7 +34,11 @@ import java.util.zip.ZipEntry;
  * @since 5.0.0
  */
 public final class ResourceUtils {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceUtils.class);
+
+    // This constant covers both http and https
+    private static final String HTTP_URL_PREFIX = "http";
 
     private ResourceUtils() {
     }
@@ -45,15 +51,15 @@ public final class ResourceUtils {
      * @throws IOException the exception
      */
     public static AbstractResource getRawResourceFrom(final String location) throws IOException {
-        final AbstractResource metadataLocationResource;
-        if (location.toLowerCase().startsWith("http")) {
-            metadataLocationResource = new UrlResource(location);
-        } else if (location.toLowerCase().startsWith("classpath")) {
-            metadataLocationResource = new ClassPathResource(location);
+        final AbstractResource res;
+        if (location.toLowerCase().startsWith(HTTP_URL_PREFIX)) {
+            res = new UrlResource(location);
+        } else if (location.toLowerCase().startsWith(CLASSPATH_URL_PREFIX)) {
+            res = new ClassPathResource(location.substring(CLASSPATH_URL_PREFIX.length()));
         } else {
-            metadataLocationResource = new FileSystemResource(location);
+            res = new FileSystemResource(StringUtils.remove(location, "file:"));
         }
-        return metadataLocationResource;
+        return res;
     }
 
     /**
@@ -85,7 +91,7 @@ public final class ResourceUtils {
         if (res != null) {
             try {
                 IOUtils.read(res.getInputStream(), new byte[1]);
-                return true;
+                return res.contentLength() > 0;
             } catch (final Exception e) {
                 LOGGER.trace(e.getMessage(), e);
                 return false;

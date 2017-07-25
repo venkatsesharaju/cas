@@ -5,7 +5,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apereo.cas.authentication.Authentication;
 
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -25,13 +25,13 @@ public class NullPrincipal implements Principal {
     /** The singleton instance. **/
     private static NullPrincipal INSTANCE;
 
-    private Map<String, Object> attributes;
+    private final Map<String, Object> attributes;
 
     /**
      * Instantiates a new Null principal.
      */
     protected NullPrincipal() {
-        this.attributes = Collections.emptyMap();
+        this.attributes = new HashMap<>(0);
     }
 
     /**

@@ -30,8 +30,8 @@ public class CasConfigurationJasyptDecryptor {
         ITERATIONS("cas.standalone.config.security.iteration", null),
         PASSWORD("cas.standalone.config.security.psw", null);
 
-        private String name;
-        private String defaultValue;
+        private final String name;
+        private final String defaultValue;
 
         JasyptEncryptionParameters(final String name, final String defaultValue) {
             this.name = name;
@@ -75,11 +75,11 @@ public class CasConfigurationJasyptDecryptor {
         final String iter = getJasyptParamFromEnv(environment, JasyptEncryptionParameters.ITERATIONS);
         if (StringUtils.isNotBlank(iter) && NumberUtils.isCreatable(iter)) {
             LOGGER.debug("Configured decryptor iterations");
-            decryptor.setKeyObtentionIterations(Integer.valueOf(iter));
+            decryptor.setKeyObtentionIterations(Integer.parseInt(iter));
         }
     }
 
-    private String getJasyptParamFromEnv(final Environment environment, final JasyptEncryptionParameters param) {
+    private static String getJasyptParamFromEnv(final Environment environment, final JasyptEncryptionParameters param) {
         return environment.getProperty(param.getName(), param.getDefaultValue());
     }
 
@@ -96,7 +96,7 @@ public class CasConfigurationJasyptDecryptor {
             if (StringUtils.isNotBlank(stringValue) && stringValue.startsWith(ENCRYPTED_VALUE_PREFIX)) {
                 try {
                     if (!this.decryptor.isInitialized()) {
-                        LOGGER.debug("Initializing decryptor...", key);
+                        LOGGER.debug("Initializing decryptor...");
                         this.decryptor.initialize();
                     }
                     final String encValue = stringValue.substring(ENCRYPTED_VALUE_PREFIX.length());
@@ -121,7 +121,7 @@ public class CasConfigurationJasyptDecryptor {
      * @param propertyValue The property value to cast
      * @return A {@link String} representing the property value or {@code null} if it is not a {@link String}
      */
-    private String getStringPropertyValue(final Object propertyValue) {
+    private static String getStringPropertyValue(final Object propertyValue) {
         return propertyValue instanceof String ? propertyValue.toString() : null;
     }
 }

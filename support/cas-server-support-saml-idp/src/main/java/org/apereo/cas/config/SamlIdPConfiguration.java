@@ -2,6 +2,7 @@ package org.apereo.cas.config;
 
 import net.shibboleth.ext.spring.resource.ResourceHelper;
 import org.apereo.cas.authentication.AuthenticationSystemSupport;
+import org.apereo.cas.authentication.principal.PersistentIdGenerator;
 import org.apereo.cas.authentication.principal.ServiceFactory;
 import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.configuration.CasConfigurationProperties;
@@ -40,6 +41,7 @@ import org.apereo.cas.support.saml.web.idp.profile.slo.SLORedirectProfileHandler
 import org.apereo.cas.support.saml.web.idp.profile.sso.SSOPostProfileCallbackHandlerController;
 import org.apereo.cas.support.saml.web.idp.profile.sso.SSOPostProfileHandlerController;
 import org.apereo.cas.util.http.HttpClient;
+import org.jasig.cas.client.validation.AbstractUrlBasedTicketValidator;
 import org.opensaml.saml.metadata.resolver.MetadataResolver;
 import org.opensaml.saml.metadata.resolver.impl.ResourceBackedMetadataResolver;
 import org.opensaml.saml.saml2.core.Assertion;
@@ -73,6 +75,14 @@ public class SamlIdPConfiguration {
     private CasConfigurationProperties casProperties;
 
     @Autowired
+    @Qualifier("shibbolethCompatiblePersistentIdGenerator")
+    private PersistentIdGenerator shibbolethCompatiblePersistentIdGenerator;
+
+    @Autowired
+    @Qualifier("casClientTicketValidator")
+    private AbstractUrlBasedTicketValidator casClientTicketValidator;
+
+    @Autowired
     @Qualifier("servicesManager")
     private ServicesManager servicesManager;
 
@@ -83,7 +93,7 @@ public class SamlIdPConfiguration {
     @Autowired
     @Qualifier("shibboleth.OpenSAMLConfig")
     private OpenSamlConfigBean openSamlConfigBean;
-    
+
     @Autowired
     @Qualifier("shibboleth.VelocityEngine")
     private VelocityEngineFactory velocityEngineFactory;
@@ -95,12 +105,12 @@ public class SamlIdPConfiguration {
     @Autowired
     @Qualifier("defaultAuthenticationSystemSupport")
     private AuthenticationSystemSupport authenticationSystemSupport;
-        
+
     @Bean
     public SingleLogoutServiceLogoutUrlBuilder singleLogoutServiceLogoutUrlBuilder() {
         return new SamlIdPSingleLogoutServiceLogoutUrlBuilder(servicesManager, defaultSamlRegisteredServiceCachingMetadataResolver());
     }
-    
+
     @ConditionalOnMissingBean(name = "chainingMetadataResolverCacheLoader")
     @Bean
     @RefreshScope
@@ -199,7 +209,7 @@ public class SamlIdPConfiguration {
     @Bean
     @RefreshScope
     public SamlProfileObjectBuilder<NameID> samlProfileSamlNameIdBuilder() {
-        return new SamlProfileSamlNameIdBuilder(openSamlConfigBean);
+        return new SamlProfileSamlNameIdBuilder(openSamlConfigBean, shibbolethCompatiblePersistentIdGenerator);
     }
 
     @ConditionalOnMissingBean(name = "samlProfileSamlConditionsBuilder")
@@ -213,7 +223,7 @@ public class SamlIdPConfiguration {
     @Bean
     @RefreshScope
     public AuthnContextClassRefBuilder defaultAuthnContextClassRefBuilder() {
-        return new DefaultAuthnContextClassRefBuilder();
+        return new DefaultAuthnContextClassRefBuilder(casProperties);
     }
 
     @ConditionalOnMissingBean(name = "samlProfileSamlAssertionBuilder")
@@ -383,7 +393,8 @@ public class SamlIdPConfiguration {
                 casProperties.getServer().getLogoutUrl(),
                 idp.getLogout().isForceSignedLogoutRequests(),
                 idp.getLogout().isSingleLogoutCallbacksDisabled(),
-                samlObjectSignatureValidator());
+                samlObjectSignatureValidator(),
+                this.casClientTicketValidator);
     }
 
     @Bean

@@ -17,8 +17,8 @@ import org.apereo.cas.support.saml.web.idp.profile.builders.SamlProfileObjectBui
 import org.apereo.cas.support.saml.web.idp.profile.builders.enc.BaseSamlObjectSigner;
 import org.apereo.cas.support.saml.web.idp.profile.builders.enc.SamlObjectSignatureValidator;
 import org.jasig.cas.client.util.CommonUtils;
+import org.jasig.cas.client.validation.AbstractUrlBasedTicketValidator;
 import org.jasig.cas.client.validation.Assertion;
-import org.jasig.cas.client.validation.Cas30ServiceTicketValidator;
 import org.opensaml.messaging.context.MessageContext;
 import org.opensaml.saml.common.SAMLObject;
 import org.opensaml.saml.common.binding.SAMLBindingSupport;
@@ -43,6 +43,8 @@ import java.util.Set;
 public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfileHandlerController {
     private static final Logger LOGGER = LoggerFactory.getLogger(SSOPostProfileCallbackHandlerController.class);
 
+    private final AbstractUrlBasedTicketValidator ticketValidator;
+
     /**
      * Instantiates a new idp-sso post saml profile handler controller.
      *
@@ -63,6 +65,7 @@ public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfile
      * @param forceSignedLogoutRequests                    the force signed logout requests
      * @param singleLogoutCallbacksDisabled                the single logout callbacks disabled
      * @param samlObjectSignatureValidator                 the saml object signature validator
+     * @param ticketValidator                              the ticket validator
      */
     public SSOPostProfileCallbackHandlerController(final BaseSamlObjectSigner samlObjectSigner,
                                                    final ParserPool parserPool,
@@ -80,7 +83,8 @@ public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfile
                                                    final String logoutUrl,
                                                    final boolean forceSignedLogoutRequests,
                                                    final boolean singleLogoutCallbacksDisabled,
-                                                   final SamlObjectSignatureValidator samlObjectSignatureValidator) {
+                                                   final SamlObjectSignatureValidator samlObjectSignatureValidator,
+                                                   final AbstractUrlBasedTicketValidator ticketValidator) {
         super(samlObjectSigner,
                 parserPool,
                 authenticationSystemSupport,
@@ -98,6 +102,7 @@ public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfile
                 forceSignedLogoutRequests,
                 singleLogoutCallbacksDisabled,
                 samlObjectSignatureValidator);
+        this.ticketValidator = ticketValidator;
     }
 
     /**
@@ -137,13 +142,13 @@ public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfile
      * @param authnRequest the authn request
      * @return the pair
      */
-    protected Pair<AuthnRequest, MessageContext> buildAuthenticationContextPair(final HttpServletRequest request,
-                                                                                final AuthnRequest authnRequest) {
+    protected static Pair<AuthnRequest, MessageContext> buildAuthenticationContextPair(final HttpServletRequest request,
+                                                                                       final AuthnRequest authnRequest) {
         final MessageContext<SAMLObject> messageContext = bindRelayStateParameter(request);
         return Pair.of(authnRequest, messageContext);
     }
 
-    private MessageContext<SAMLObject> bindRelayStateParameter(final HttpServletRequest request) {
+    private static MessageContext<SAMLObject> bindRelayStateParameter(final HttpServletRequest request) {
         final MessageContext<SAMLObject> messageContext = new MessageContext<>();
         final String relayState = request.getParameter(SamlProtocolConstants.PARAMETER_SAML_RELAY_STATE);
         LOGGER.debug("RelayState is [{}]", relayState);
@@ -156,11 +161,10 @@ public class SSOPostProfileCallbackHandlerController extends AbstractSamlProfile
                                                           final Pair<AuthnRequest, MessageContext> pair) throws Exception {
         final AuthnRequest authnRequest = pair.getKey();
         final String ticket = CommonUtils.safeGetParameter(request, CasProtocolConstants.PARAMETER_TICKET);
-        final Cas30ServiceTicketValidator validator = new Cas30ServiceTicketValidator(this.serverPrefix);
-        validator.setRenew(authnRequest.isForceAuthn());
+        this.ticketValidator.setRenew(authnRequest.isForceAuthn());
         final String serviceUrl = constructServiceUrl(request, response, pair);
         LOGGER.debug("Created service url for validation: [{}]", serviceUrl);
-        final Assertion assertion = validator.validate(ticket, serviceUrl);
+        final Assertion assertion = this.ticketValidator.validate(ticket, serviceUrl);
         logCasValidationAssertion(assertion);
         return assertion;
     }

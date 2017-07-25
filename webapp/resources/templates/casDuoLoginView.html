@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="layout">
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
 
 <head>
     <title th:text="#{cas.mfa.duologin.pagetitle}"></title>
@@ -15,6 +15,7 @@
 
         <input type="hidden" name="execution" th:value="${flowExecutionKey}"/>
         <input type="hidden" name="_eventId" value="submit"/>
+        <input type="hidden" name="geolocation"/>
 
         <div class="box fl-panel" id="login">
             <iframe id="duo_iframe"

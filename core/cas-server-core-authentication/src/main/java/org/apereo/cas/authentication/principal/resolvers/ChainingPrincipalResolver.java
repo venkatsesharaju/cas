@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ public class ChainingPrincipalResolver implements PrincipalResolver {
     /**
      * Factory to create the principal type.
      **/
-    private PrincipalFactory principalFactory = new DefaultPrincipalFactory();
+    private final PrincipalFactory principalFactory = new DefaultPrincipalFactory();
 
     /**
      * The chain of delegate resolvers that are invoked in order.
@@ -56,6 +56,10 @@ public class ChainingPrincipalResolver implements PrincipalResolver {
         this.chain = chain;
     }
 
+    public void setChain(final PrincipalResolver... chain) {
+        this.chain = Arrays.stream(chain).collect(Collectors.toList());
+    }
+    
     /**
      * {@inheritDoc}
      * Resolves a credential by delegating to each of the configured resolvers in sequence. Note that the
@@ -102,10 +106,10 @@ public class ChainingPrincipalResolver implements PrincipalResolver {
         if (count > 1) {
             throw new PrincipalException("Resolved principals by the chain are not unique because principal resolvers have produced CAS principals "
                     + "with different identifiers which typically is the result of a configuration issue.",
-                    Collections.emptyMap(),
-                    Collections.emptyMap());
+                    new HashMap<>(0),
+                    new HashMap<>(0));
         }
-        final String principalId = principal != null ? principal.getId() : principals.iterator().next().getId();
+        final String principalId = principal != null ? principal.getId() : principals.get(0).getId();
         final Principal finalPrincipal = this.principalFactory.createPrincipal(principalId, attributes);
         LOGGER.debug("Final principal constructed by the chain of resolvers is [{}]", finalPrincipal);
         return finalPrincipal;

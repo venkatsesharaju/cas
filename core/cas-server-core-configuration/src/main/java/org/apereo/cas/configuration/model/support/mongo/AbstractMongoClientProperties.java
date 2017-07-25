@@ -2,15 +2,32 @@ package org.apereo.cas.configuration.model.support.mongo;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.Serializable;
+
 /**
  * This is {@link AbstractMongoClientProperties}.
  *
  * @author Misagh Moayyed
  * @since 5.0.0
  */
-public abstract class AbstractMongoClientProperties {
+public abstract class AbstractMongoClientProperties implements Serializable {
+    private static final long serialVersionUID = 2844298699021872943L;
+
+    /**
+     * The connection uri to the mongodb instance.
+     * This typically takes on the form of <code>mongodb://user:psw@ds135522.somewhere.com:35522/db</code>
+     */
     private String clientUri = StringUtils.EMPTY;
+
+    /**
+     * The collection name to use and create statically.
+     */
     private String collection = StringUtils.EMPTY;
+
+    /**
+     * When pre-existing collections should be dropped on startup,
+     * rebooting the current data before doing anything else.
+     */
     private boolean dropCollection;
 
     public String getClientUri() {

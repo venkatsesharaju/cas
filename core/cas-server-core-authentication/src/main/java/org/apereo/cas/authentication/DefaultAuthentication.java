@@ -8,7 +8,6 @@ import org.apereo.cas.util.CollectionUtils;
 import org.springframework.util.Assert;
 
 import java.time.ZonedDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +40,7 @@ public class DefaultAuthentication implements Authentication {
     /**
      * Authenticated principal.
      */
-    private Principal principal;
+    private final Principal principal;
 
     /**
      * Authentication metadata attributes.
@@ -51,12 +50,12 @@ public class DefaultAuthentication implements Authentication {
     /**
      * Map of handler name to handler authentication success event.
      */
-    private Map<String, HandlerResult> successes;
+    private final Map<String, HandlerResult> successes;
 
     /**
      * Map of handler name to handler authentication failure cause.
      */
-    private Map<String, Class<? extends Exception>> failures;
+    private Map<String, Class<? extends Throwable>> failures;
 
     /**
      * No-arg constructor for serialization support.
@@ -113,7 +112,7 @@ public class DefaultAuthentication implements Authentication {
             final Principal principal,
             final Map<String, Object> attributes,
             final Map<String, HandlerResult> successes,
-            final Map<String, Class<? extends Exception>> failures) {
+            final Map<String, Class<? extends Throwable>> failures) {
 
         this(date, principal, attributes, successes);
 
@@ -121,7 +120,7 @@ public class DefaultAuthentication implements Authentication {
         Assert.notEmpty(credentials, "Credential cannot be empty");
 
         this.credentials = credentials;
-        this.failures = failures.isEmpty() ? Collections.emptyMap() : failures;
+        this.failures = failures.isEmpty() ? new HashMap<>(0) : failures;
     }
 
     @Override
@@ -141,7 +140,7 @@ public class DefaultAuthentication implements Authentication {
 
     @Override
     public List<CredentialMetaData> getCredentials() {
-        return Collections.unmodifiableList(this.credentials);
+        return CollectionUtils.wrap(this.credentials);
     }
 
     @Override
@@ -150,7 +149,7 @@ public class DefaultAuthentication implements Authentication {
     }
 
     @Override
-    public Map<String, Class<? extends Exception>> getFailures() {
+    public Map<String, Class<? extends Throwable>> getFailures() {
         return CollectionUtils.wrap(this.failures);
     }
 

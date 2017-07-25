@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="layout">
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
 
 <head>
     <title th:text="#{cas.mfa.u2f.pagetitle}"></title>
@@ -49,6 +49,7 @@
             <input type="hidden" name="tokenResponse" id="tokenResponse" th:field="*{token}" />
             <input type="hidden" name="_eventId" value="submit"/>
             <input type="hidden" name="execution" th:value="${flowExecutionKey}"/>
+            <input type="hidden" name="geolocation"/>
         </form>
     </div>
 </div>

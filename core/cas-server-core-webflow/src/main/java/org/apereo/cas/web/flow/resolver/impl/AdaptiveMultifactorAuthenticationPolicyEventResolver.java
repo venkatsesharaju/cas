@@ -14,6 +14,7 @@ import org.apereo.cas.services.MultifactorAuthenticationProviderSelector;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.web.flow.authentication.BaseMultifactorAuthenticationProviderEventResolver;
 import org.apereo.cas.web.support.WebUtils;
 import org.apereo.inspektr.audit.annotation.Audit;
@@ -25,7 +26,6 @@ import org.springframework.web.util.CookieGenerator;
 import org.springframework.webflow.execution.Event;
 import org.springframework.webflow.execution.RequestContext;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -140,7 +140,7 @@ public class AdaptiveMultifactorAuthenticationPolicyEventResolver extends BaseMu
         return false;
     }
 
-    private boolean checkUserAgentOrClientIp(final String clientIp, final String agent, final String mfaMethod, final String pattern) {
+    private static boolean checkUserAgentOrClientIp(final String clientIp, final String agent, final String mfaMethod, final String pattern) {
         if (agent.matches(pattern) || clientIp.matches(pattern)) {
             LOGGER.debug("Current user agent [{}] at [{}] matches the provided pattern [{}] for "
                          + "adaptive authentication and is required to use [{}]",
@@ -159,7 +159,7 @@ public class AdaptiveMultifactorAuthenticationPolicyEventResolver extends BaseMu
                     provider, service.getName());
             final Event event = validateEventIdForMatchingTransitionInContext(provider.getId(), context,
                     buildEventAttributeMap(authentication.getPrincipal(), service, provider));
-            return Collections.singleton(event);
+            return CollectionUtils.wrapSet(event);
         }
         LOGGER.warn("Located multifactor provider [{}], yet the provider cannot be reached or verified", provider);
         return null;

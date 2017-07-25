@@ -22,8 +22,8 @@ import org.apereo.cas.util.DefaultUniqueTicketIdGenerator;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,19 +41,19 @@ public class MockTicketGrantingTicket implements TicketGrantingTicket, TicketSta
 
     private static final long serialVersionUID = 6546995681334670659L;
 
-    private String id;
+    private final String id;
 
-    private Authentication authentication;
+    private final Authentication authentication;
 
-    private ZonedDateTime created;
+    private final ZonedDateTime created;
 
     private int usageCount;
 
     private boolean expired;
 
-    private Map<String, Service> services = new HashMap<>();
+    private final Map<String, Service> services = new HashMap<>();
 
-    private Set<ProxyGrantingTicket> proxyGrantingTickets = new HashSet<>();
+    private final Set<ProxyGrantingTicket> proxyGrantingTickets = new HashSet<>();
 
     public MockTicketGrantingTicket(final String principal, final Credential c, final Map attributes) {
         id = ID_GENERATOR.getNewTicketId("TGT");
@@ -114,7 +114,7 @@ public class MockTicketGrantingTicket implements TicketGrantingTicket, TicketSta
 
     @Override
     public List<Authentication> getChainedAuthentications() {
-        return Collections.emptyList();
+        return new ArrayList<>(0);
     }
 
     @Override

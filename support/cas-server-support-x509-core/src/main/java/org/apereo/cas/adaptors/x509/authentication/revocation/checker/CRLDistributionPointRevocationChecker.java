@@ -197,11 +197,11 @@ public class CRLDistributionPointRevocationChecker extends AbstractCRLRevocation
      * @param cert the cert
      * @return the url distribution points
      */
-    private URI[] getDistributionPoints(final X509Certificate cert) {
+    private static URI[] getDistributionPoints(final X509Certificate cert) {
         final List<DistributionPoint> points;
         try {
             points = new ExtensionReader(cert).readCRLDistributionPoints();
-        } catch (final RuntimeException e) {
+        } catch (final Exception e) {
             LOGGER.error("Error reading CRLDistributionPoints extension field on [{}]", CertUtils.toString(cert), e);
             return new URI[0];
         }
@@ -215,7 +215,7 @@ public class CRLDistributionPointRevocationChecker extends AbstractCRLRevocation
                     LOGGER.debug("Found CRL distribution point [{}].", name);
                     try {
                         addURL(urls, DERIA5String.getInstance(name.getName()).getString());
-                    } catch (final RuntimeException e) {
+                    } catch (final Exception e) {
                         LOGGER.warn("[{}] not supported. String or GeneralNameList expected.", pointName);
                     }
                 });
@@ -236,7 +236,7 @@ public class CRLDistributionPointRevocationChecker extends AbstractCRLRevocation
      * @param list      the list
      * @param uriString the uri string
      */
-    private void addURL(final List<URI> list, final String uriString) {
+    private static void addURL(final List<URI> list, final String uriString) {
         try {
             URI uri;
             try {

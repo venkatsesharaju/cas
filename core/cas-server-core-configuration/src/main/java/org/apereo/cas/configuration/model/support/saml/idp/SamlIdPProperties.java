@@ -6,7 +6,6 @@ import org.springframework.core.io.Resource;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -213,10 +212,28 @@ public class SamlIdPProperties {
     }
 
     public static class Response {
-        private int skewAllowance;
+        private int skewAllowance = 5;
         private boolean signError;
+        private String defaultAuthenticationContextClass = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport";
+        private String defaultAttributeNameFormat = "uri";
         private boolean useAttributeFriendlyName = true;
         private List<String> attributeNameFormats = new ArrayList<>();
+
+        public String getDefaultAuthenticationContextClass() {
+            return defaultAuthenticationContextClass;
+        }
+
+        public void setDefaultAuthenticationContextClass(final String defaultAuthenticationContextClass) {
+            this.defaultAuthenticationContextClass = defaultAuthenticationContextClass;
+        }
+
+        public String getDefaultAttributeNameFormat() {
+            return defaultAttributeNameFormat;
+        }
+
+        public void setDefaultAttributeNameFormat(final String defaultAttributeNameFormat) {
+            this.defaultAttributeNameFormat = defaultAttributeNameFormat;
+        }
 
         public List<String> getAttributeNameFormats() {
             return attributeNameFormats;
@@ -257,7 +274,7 @@ public class SamlIdPProperties {
          */
         public Map<String, String> configureAttributeNameFormats() {
             if (this.attributeNameFormats.isEmpty()) {
-                return Collections.emptyMap();
+                return new HashMap<>(0);
             }
             final Map<String, String> nameFormats = new HashMap<>();
             this.attributeNameFormats.forEach(value -> Arrays.stream(value.split(",")).forEach(format -> {

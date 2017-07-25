@@ -2,6 +2,7 @@ package org.apereo.cas.services;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apereo.cas.authentication.principal.Principal;
+import org.apereo.cas.authentication.principal.Service;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.Map;
  * @author Misagh Moayyed
  * @since 4.1.0
  */
+@FunctionalInterface
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
 public interface RegisteredServiceAttributeReleasePolicy extends Serializable {
 
@@ -45,9 +47,10 @@ public interface RegisteredServiceAttributeReleasePolicy extends Serializable {
     /**
      * Gets the attributes, having applied the filter.
      *
-     * @param p       the principal that contains the resolved attributes
-     * @param service the service
+     * @param p               the principal that contains the resolved attributes
+     * @param selectedService the selected service
+     * @param service         the service
      * @return the attributes
      */
-    Map<String, Object> getAttributes(Principal p, RegisteredService service);
+    Map<String, Object> getAttributes(Principal p, Service selectedService, RegisteredService service);
 }

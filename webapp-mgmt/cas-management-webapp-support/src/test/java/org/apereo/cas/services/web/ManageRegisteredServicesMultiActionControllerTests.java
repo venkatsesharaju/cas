@@ -26,7 +26,7 @@ import org.junit.runners.JUnit4;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.ModelAndView;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,15 +48,17 @@ public class ManageRegisteredServicesMultiActionControllerTests {
     private ManageRegisteredServicesMultiActionController controller;
     private DefaultRegisteredServiceFactory registeredServiceFactory;
     private DefaultServicesManager servicesManager;
-    private final DefaultAttributeReleasePolicyMapper policyMapper = new DefaultAttributeReleasePolicyMapper(new DefaultAttributeFilterMapper(),
-            new DefaultPrincipalAttributesRepositoryMapper());
+    private final DefaultAttributeReleasePolicyMapper policyMapper =
+            new DefaultAttributeReleasePolicyMapper(new DefaultAttributeFilterMapper(),
+                    new DefaultPrincipalAttributesRepositoryMapper(),
+                    new ArrayList<>());
 
     @Before
     public void setUp() throws Exception {
         this.servicesManager = new DefaultServicesManager(new InMemoryServiceRegistry());
 
         this.registeredServiceFactory = new DefaultRegisteredServiceFactory(new DefaultAccessStrategyMapper(), policyMapper, new DefaultProxyPolicyMapper(),
-                new DefaultRegisteredServiceMapper(), new DefaultUsernameAttributeProviderMapper(), Collections.emptyList());
+                new DefaultRegisteredServiceMapper(), new DefaultUsernameAttributeProviderMapper(), new ArrayList<>(0));
 
         this.controller = new ManageRegisteredServicesMultiActionController(this.servicesManager, this
                 .registeredServiceFactory, new WebApplicationServiceFactory(), "https://cas.example.org");
@@ -134,7 +136,7 @@ public class ManageRegisteredServicesMultiActionControllerTests {
     public void verifyCustomComponents() throws Exception {
         // override the RegisteredServiceMapper
         this.registeredServiceFactory = new DefaultRegisteredServiceFactory(new DefaultAccessStrategyMapper(), policyMapper, new DefaultProxyPolicyMapper(),
-                new CustomRegisteredServiceMapper(), new DefaultUsernameAttributeProviderMapper(), Collections.emptyList());
+                new CustomRegisteredServiceMapper(), new DefaultUsernameAttributeProviderMapper(), new ArrayList<>(0));
 
         this.controller = new ManageRegisteredServicesMultiActionController(this.servicesManager, this
                 .registeredServiceFactory, new WebApplicationServiceFactory(), "https://cas.example.org");

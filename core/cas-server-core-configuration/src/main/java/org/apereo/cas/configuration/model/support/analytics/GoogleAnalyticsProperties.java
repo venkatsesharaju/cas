@@ -6,9 +6,12 @@ package org.apereo.cas.configuration.model.support.analytics;
  * @author Misagh Moayyed
  * @since 5.0.0
  */
-
 public class GoogleAnalyticsProperties {
 
+    /**
+     * The tracking id. Configuring the tracking
+     * activated google analytics in CAS on UI views, etc.
+     */
     private String googleAnalyticsTrackingId;
 
     public String getGoogleAnalyticsTrackingId() {

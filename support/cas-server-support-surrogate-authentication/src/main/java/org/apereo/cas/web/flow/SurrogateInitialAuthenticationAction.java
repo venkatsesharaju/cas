@@ -59,7 +59,7 @@ public class SurrogateInitialAuthenticationAction extends InitialAuthenticationA
 
         if (StringUtils.isBlank(surrogateUsername)) {
             up.setUsername(realUsername);
-            context.getFlowScope().put(SurrogateWebflowEventResolver.CONTEXT_ATTRIBUTE_REQUEST_SURROGATE, true);
+            context.getFlowScope().put(SurrogateWebflowEventResolver.CONTEXT_ATTRIBUTE_REQUEST_SURROGATE, Boolean.TRUE);
             WebUtils.putCredential(context, up);
             return;
         }
@@ -70,11 +70,11 @@ public class SurrogateInitialAuthenticationAction extends InitialAuthenticationA
         if (up instanceof RememberMeCredential) {
             sc.setRememberMe(((RememberMeCredential) up).isRememberMe());
         }
-        context.getFlowScope().put(SurrogateWebflowEventResolver.CONTEXT_ATTRIBUTE_REQUEST_SURROGATE, false);
+        context.getFlowScope().put(SurrogateWebflowEventResolver.CONTEXT_ATTRIBUTE_REQUEST_SURROGATE, Boolean.FALSE);
         WebUtils.putCredential(context, sc);
     }
 
-    private void deconvertFromSurrogatePrincipal(final RequestContext context) {
+    private static void deconvertFromSurrogatePrincipal(final RequestContext context) {
         final Credential c = WebUtils.getCredential(context);
         if (c instanceof SurrogateUsernamePasswordCredential) {
             final SurrogateUsernamePasswordCredential sc = SurrogateUsernamePasswordCredential.class.cast(c);

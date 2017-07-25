@@ -5,6 +5,7 @@ import org.apereo.cas.adaptors.x509.authentication.CRLFetcher;
 import org.apereo.cas.adaptors.x509.authentication.ResourceCRLFetcher;
 import org.apereo.cas.adaptors.x509.authentication.handler.support.X509CredentialsAuthenticationHandler;
 import org.apereo.cas.adaptors.x509.authentication.revocation.policy.RevocationPolicy;
+import org.apereo.cas.util.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -14,6 +15,7 @@ import javax.annotation.PreDestroy;
 import javax.security.auth.x500.X500Principal;
 import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,7 +42,7 @@ public class ResourceCRLRevocationChecker extends AbstractCRLRevocationChecker {
     /**
      * Executor responsible for refreshing CRL data.
      */
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     /**
      * CRL refresh interval in seconds.
@@ -52,7 +54,7 @@ public class ResourceCRLRevocationChecker extends AbstractCRLRevocationChecker {
     /**
      * Map of CRL issuer to CRL.
      */
-    private Map<X500Principal, X509CRL> crlIssuerMap = Collections.synchronizedMap(new HashMap<>());
+    private final Map<X500Principal, X509CRL> crlIssuerMap = Collections.synchronizedMap(new HashMap<>());
 
     /**
      * Resource CRLs.
@@ -72,7 +74,7 @@ public class ResourceCRLRevocationChecker extends AbstractCRLRevocationChecker {
                                         final RevocationPolicy<Void> unavailableCRLPolicy,
                                         final RevocationPolicy<X509CRL> expiredCRLPolicy) {
         this(false, unavailableCRLPolicy, expiredCRLPolicy, DEFAULT_REFRESH_INTERVAL,
-                new ResourceCRLFetcher(), Collections.singleton(crl));
+                new ResourceCRLFetcher(), CollectionUtils.wrap(crl));
 
     }
 
@@ -89,7 +91,7 @@ public class ResourceCRLRevocationChecker extends AbstractCRLRevocationChecker {
      * @param crl Resource containing CRL data.  MUST NOT be null.
      */
     public ResourceCRLRevocationChecker(final Resource crl) {
-        this(Collections.singleton(crl));
+        this(CollectionUtils.wrap(crl));
     }
 
     /**
@@ -209,10 +211,10 @@ public class ResourceCRLRevocationChecker extends AbstractCRLRevocationChecker {
         final X500Principal principal = cert.getIssuerX500Principal();
 
         if (this.crlIssuerMap.containsKey(principal)) {
-            return Collections.singleton(this.crlIssuerMap.get(principal));
+            return CollectionUtils.wrap(this.crlIssuerMap.get(principal));
         }
         LOGGER.warn("Could not locate CRL for issuer principal [{}]", principal);
-        return Collections.emptyList();
+        return new ArrayList<>(0);
     }
 
     /**

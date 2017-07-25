@@ -5,7 +5,7 @@ import org.apereo.cas.authentication.principal.Service;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -20,8 +20,8 @@ public class AuthenticationTransaction implements Serializable {
 
     private static final long serialVersionUID = 6213904009424725484L;
 
-    private Collection<Credential> credentials;
-    private Service service;
+    private final Collection<Credential> credentials;
+    private final Service service;
 
     /**
      * Instantiates a new Default authentication transaction.
@@ -98,7 +98,7 @@ public class AuthenticationTransaction implements Serializable {
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
         }
-        return Collections.emptySet();
+        return new HashSet<>(0);
     }
 }
 

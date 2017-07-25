@@ -33,9 +33,9 @@ public class SpnegoCredential implements Credential, Serializable {
 
     /** The ntlmssp signature. */
     private static final Byte[] NTLMSSP_SIGNATURE = {(byte) 'N',
-            (byte) 'T', (byte) 'L',
-            (byte) 'M', CHAR_S_BYTE, CHAR_S_BYTE,
-            (byte) 'P', (byte) 0};
+        (byte) 'T', (byte) 'L',
+        (byte) 'M', CHAR_S_BYTE, CHAR_S_BYTE,
+        (byte) 'P', (byte) 0};
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SpnegoCredential.class);
     /**
@@ -150,7 +150,7 @@ public class SpnegoCredential implements Credential, Serializable {
      * @param source  the byte array source
      * @return the byte[] read from the source or null
      */
-    private byte[] consumeByteSourceOrNull(final ByteSource source) {
+    private static byte[] consumeByteSourceOrNull(final ByteSource source) {
         try {
             if (source == null || source.isEmpty()) {
                 return null;

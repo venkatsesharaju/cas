@@ -1,7 +1,7 @@
 package org.apereo.cas.validation;
 
 import java.io.Serializable;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -23,16 +23,16 @@ public class ImmutableAssertion implements Assertion, Serializable {
     private static final long serialVersionUID = -3348826049921010423L;
 
     /** Primary authentication. */
-    private Authentication primaryAuthentication;
+    private final Authentication primaryAuthentication;
 
     /** Chained authentications. */
-    private List<Authentication> chainedAuthentications;
+    private final List<Authentication> chainedAuthentications;
 
     /** Was this the result of a new login. */
-    private boolean fromNewLogin;
+    private final boolean fromNewLogin;
 
     /** The service we are asserting this ticket for. */
-    private Service service;
+    private final Service service;
 
     /**
      * Creates a new instance with required parameters.
@@ -68,7 +68,7 @@ public class ImmutableAssertion implements Assertion, Serializable {
 
     @Override
     public List<Authentication> getChainedAuthentications() {
-        return Collections.unmodifiableList(this.chainedAuthentications);
+        return new ArrayList<>(this.chainedAuthentications);
     }
 
     @Override

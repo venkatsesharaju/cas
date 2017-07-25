@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="layout">
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
 
 <head>
     <title th:text="#{cas.mfa.googleauth.pagetitle}"></title>
@@ -28,6 +28,7 @@
             </div>
             <div class="row btn-row">
                 <input type="hidden" name="execution" th:value="${flowExecutionKey}"/>
+                <input type="hidden" name="geolocation"/>
             </div>
         </form>
     </div>

@@ -6,7 +6,7 @@ import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.AuthenticationManager;
 import org.apereo.cas.authentication.DefaultAuthenticationBuilder;
 import org.apereo.cas.authentication.principal.Principal;
-import org.apereo.cas.configuration.model.support.mfa.MultifactorAuthenticationProperties;
+import org.apereo.cas.configuration.model.support.mfa.BaseMultifactorProvider;
 import org.apereo.cas.util.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +25,9 @@ public class DefaultMultifactorAuthenticationProviderBypass implements Multifact
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMultifactorAuthenticationProviderBypass.class);
     private static final long serialVersionUID = 3720922341350004543L;
 
-    private final MultifactorAuthenticationProperties.BaseProvider.Bypass bypass;
+    private final BaseMultifactorProvider.Bypass bypass;
 
-    public DefaultMultifactorAuthenticationProviderBypass(final MultifactorAuthenticationProperties.BaseProvider.Bypass bypass) {
+    public DefaultMultifactorAuthenticationProviderBypass(final BaseMultifactorProvider.Bypass bypass) {
         this.bypass = bypass;
     }
 
@@ -91,8 +91,8 @@ public class DefaultMultifactorAuthenticationProviderBypass implements Multifact
         return true;
     }
 
-    private void updateAuthenticationToForgetBypass(final Authentication authentication, final MultifactorAuthenticationProvider provider,
-                                                    final Principal principal) {
+    private static void updateAuthenticationToForgetBypass(final Authentication authentication, final MultifactorAuthenticationProvider provider,
+                                                           final Principal principal) {
         LOGGER.debug("Bypass rules for service [{}] indicate the request may be ignored", principal.getId());
         final Authentication newAuthn = DefaultAuthenticationBuilder.newInstance(authentication)
                 .addAttribute(AUTHENTICATION_ATTRIBUTE_BYPASS_MFA, Boolean.FALSE)
@@ -102,8 +102,8 @@ public class DefaultMultifactorAuthenticationProviderBypass implements Multifact
         authentication.updateAll(newAuthn);
     }
 
-    private void updateAuthenticationToRememberBypass(final Authentication authentication, final MultifactorAuthenticationProvider provider,
-                                                      final Principal principal) {
+    private static void updateAuthenticationToRememberBypass(final Authentication authentication, final MultifactorAuthenticationProvider provider,
+                                                             final Principal principal) {
         LOGGER.debug("Bypass rules for service [{}] indicate the request may NOT be ignored", principal.getId());
         final Authentication newAuthn = DefaultAuthenticationBuilder.newInstance(authentication)
                 .addAttribute(AUTHENTICATION_ATTRIBUTE_BYPASS_MFA, Boolean.TRUE)
@@ -152,7 +152,7 @@ public class DefaultMultifactorAuthenticationProviderBypass implements Multifact
      * @return the boolean
      */
     protected boolean locateMatchingAttributeBasedOnAuthenticationAttributes(
-            final MultifactorAuthenticationProperties.BaseProvider.Bypass bypass, final Authentication authn) {
+            final BaseMultifactorProvider.Bypass bypass, final Authentication authn) {
         return locateMatchingAttributeValue(bypass.getAuthenticationAttributeName(),
                 bypass.getAuthenticationAttributeValue(), authn.getAttributes());
     }
@@ -165,7 +165,7 @@ public class DefaultMultifactorAuthenticationProviderBypass implements Multifact
      * @return the boolean
      */
     protected boolean locateMatchingAttributeBasedOnPrincipalAttributes(
-            final MultifactorAuthenticationProperties.BaseProvider.Bypass bypass, final Principal principal) {
+            final BaseMultifactorProvider.Bypass bypass, final Principal principal) {
         return locateMatchingAttributeValue(bypass.getPrincipalAttributeName(),
                 bypass.getAuthenticationAttributeValue(), principal.getAttributes());
     }
