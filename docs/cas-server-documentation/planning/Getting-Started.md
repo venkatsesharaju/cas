@@ -32,18 +32,25 @@ to see what options and choices might be available for deployments and applicati
 Likewise, it's equally important that you study the list of 
 CAS [supported protocols and specifications](../protocol/Protocol-Overview.html).
 
+## Review Blog
+
+From time to time, blog posts appears on the [Apereo Blog](https://apereo.github.io/)
+that might become useful as you are thinking about requirements and evaluating features.
+It is generally recommended that you follow the blog and keep up with project news and 
+announcements as much as possible, and do not shy away from writing and contributing your own blog posts, experiences and updates throughout your CAS deployment.
+
 ## Prepare Environment
 
 Quite simply, study the [installation requirements](Installation-Requirements.html) for the deployment environment.
 
-## Install CAS
+## Deploy CAS
 
 It is recommended to build and deploy CAS locally using the [WAR Overlay method](../installation/Maven-Overlay-Installation.html). 
 This approach does not require the adopter to *explicitly* download any version of CAS, but 
 rather utilizes the overlay mechanism to combine CAS original artifacts and local 
 customizations to further ease future upgrades and maintenance.
 
-**Note: Do NOT clone or download the CAS codebase directly. That is ONLY required if you
+**Note**: Do NOT clone or download the CAS codebase directly. That is ONLY required if you
 wish to contribute to the development of the project. 
 
 It is **VERY IMPORTANT** that you try to get a functional baseline working before doing anything else.
@@ -77,7 +84,7 @@ Otherwise, try to generalize and contribute back to keep maintenance costs down.
 Repeatedly, failure to comply with this strategy
 will likely lead to disastrous results in the long run.
 
-## Troubleshoot
+## Troubleshooting
 
 The [troubleshooting guide](../installation/Troubleshooting-Guide.html) might have some answers 
 for issues you may have run into and it generally tries to describe a strategy useful for troubleshooting

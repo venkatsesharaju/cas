@@ -7,9 +7,9 @@ import org.apereo.cas.authentication.exceptions.UnresolvedPrincipalException;
 import org.apereo.cas.authentication.principal.NullPrincipal;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalResolver;
-import org.apereo.cas.support.events.CasAuthenticationPrincipalResolvedEvent;
-import org.apereo.cas.support.events.CasAuthenticationTransactionStartedEvent;
-import org.apereo.cas.support.events.CasAuthenticationTransactionSuccessfulEvent;
+import org.apereo.cas.support.events.authentication.CasAuthenticationPrincipalResolvedEvent;
+import org.apereo.cas.support.events.authentication.CasAuthenticationTransactionStartedEvent;
+import org.apereo.cas.support.events.authentication.CasAuthenticationTransactionSuccessfulEvent;
 import org.apereo.inspektr.audit.annotation.Audit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +32,7 @@ import java.util.Set;
  */
 public abstract class AbstractAuthenticationManager implements AuthenticationManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractAuthenticationManager.class);
-    
+
     /**
      * Plan to execute the authentication transaction.
      */
@@ -79,15 +79,14 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
      * Populate authentication metadata attributes.
      *
      * @param builder     the builder
-     * @param credentials the credentials
+     * @param transaction the transaction
      */
     protected void populateAuthenticationMetadataAttributes(final AuthenticationBuilder builder,
-                                                            final Collection<Credential> credentials) {
-
-        final Collection<AuthenticationMetaDataPopulator> pops = getAuthenticationMetadataPopulatorsForTransaction(credentials);
-        for (final AuthenticationMetaDataPopulator populator : pops) {
-            credentials.stream().filter(populator::supports).forEach(credential -> populator.populateAttributes(builder, credential));
-        }
+                                                            final AuthenticationTransaction transaction) {
+        LOGGER.debug("Invoking authentication metadata populators for authentication transaction");
+        final Collection<AuthenticationMetaDataPopulator> pops = getAuthenticationMetadataPopulatorsForTransaction(transaction);
+        pops.forEach(populator -> transaction.getCredentials().stream().filter(populator::supports)
+                .forEach(credential -> populator.populateAttributes(builder, transaction)));
     }
 
     /**
@@ -98,25 +97,23 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
      */
     protected void addAuthenticationMethodAttribute(final AuthenticationBuilder builder,
                                                     final Authentication authentication) {
-        for (final HandlerResult result : authentication.getSuccesses().values()) {
-            builder.addAttribute(AUTHENTICATION_METHOD_ATTRIBUTE, result.getHandlerName());
-        }
+        authentication.getSuccesses().values().forEach(result -> builder.addAttribute(AUTHENTICATION_METHOD_ATTRIBUTE, result.getHandlerName()));
     }
 
     /**
      * Resolve principal.
      *
-     * @param handlerName the handler name
-     * @param resolver    the resolver
-     * @param credential  the credential
-     * @param principal   the current authenticated principal from a handler, if any.
+     * @param handler    the handler name
+     * @param resolver   the resolver
+     * @param credential the credential
+     * @param principal  the current authenticated principal from a handler, if any.
      * @return the principal
      */
-    protected Principal resolvePrincipal(final String handlerName, final PrincipalResolver resolver,
+    protected Principal resolvePrincipal(final AuthenticationHandler handler, final PrincipalResolver resolver,
                                          final Credential credential, final Principal principal) {
         if (resolver.supports(credential)) {
             try {
-                final Principal p = resolver.resolve(credential, principal);
+                final Principal p = resolver.resolve(credential, principal, handler);
                 LOGGER.debug("[{}] resolved [{}] from [{}]", resolver, p, credential);
                 return p;
             } catch (final Exception e) {
@@ -125,9 +122,7 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
         } else {
             LOGGER.warn(
                     "[{}] is configured to use [{}] but it does not support [{}], which suggests a configuration problem.",
-                    handlerName,
-                    resolver,
-                    credential);
+                    handler.getName(), resolver, credential);
         }
         return null;
     }
@@ -148,13 +143,10 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
         if (principal instanceof NullPrincipal) {
             throw new UnresolvedPrincipalException(authentication);
         }
-
         addAuthenticationMethodAttribute(builder, authentication);
-
         LOGGER.info("Authenticated principal [{}] with attributes [{}] via credentials [{}].",
                 principal.getId(), principal.getAttributes(), transaction.getCredentials());
-        populateAuthenticationMetadataAttributes(builder, transaction.getCredentials());
-
+        populateAuthenticationMetadataAttributes(builder, transaction);
         final Authentication a = builder.build();
         AuthenticationCredentialsLocalBinder.bindCurrent(a);
         return a;
@@ -191,7 +183,7 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
                     handler.getName(),
                     principal);
         } else {
-            principal = resolvePrincipal(handler.getName(), resolver, credential, principal);
+            principal = resolvePrincipal(handler, resolver, credential, principal);
             if (principal == null) {
                 if (this.principalResolutionFailureFatal) {
                     LOGGER.warn("Principal resolution handled by [{}] produced a null principal for: [{}]"
@@ -246,14 +238,20 @@ public abstract class AbstractAuthenticationManager implements AuthenticationMan
     /**
      * Gets authentication metadata populators for transaction.
      *
-     * @param credential the credential
+     * @param transaction the transaction
      * @return the authentication metadata populators for transaction
      */
-    protected Collection<AuthenticationMetaDataPopulator> getAuthenticationMetadataPopulatorsForTransaction(final Collection<Credential> credential) {
-        return this.authenticationEventExecutionPlan.getAuthenticationMetadataPopulators(credential);
+    protected Collection<AuthenticationMetaDataPopulator> getAuthenticationMetadataPopulatorsForTransaction(
+            final AuthenticationTransaction transaction) {
+        return this.authenticationEventExecutionPlan.getAuthenticationMetadataPopulators(transaction);
     }
 
-    private void publishEvent(final ApplicationEvent event) {
+    /**
+     * Publish event.
+     *
+     * @param event the event
+     */
+    protected void publishEvent(final ApplicationEvent event) {
         if (this.eventPublisher != null) {
             this.eventPublisher.publishEvent(event);
         }

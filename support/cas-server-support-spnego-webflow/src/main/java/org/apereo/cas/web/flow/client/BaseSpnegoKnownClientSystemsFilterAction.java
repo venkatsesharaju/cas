@@ -115,7 +115,7 @@ public class BaseSpnegoKnownClientSystemsFilterAction extends AbstractAction {
                     remoteIp, this.ipsToCheckPattern.pattern());
             return true;
         }
-        LOGGER.debug("No pattern or remote IP defined, or pattern does not match remote IP [[{}]]",
+        LOGGER.debug("No pattern or remote IP defined, or pattern does not match remote IP [{}]",
                 remoteIp);
         return false;
     }
@@ -194,6 +194,6 @@ public class BaseSpnegoKnownClientSystemsFilterAction extends AbstractAction {
         final String remoteHostName = revDNS.get();
         LOGGER.debug("Found remote host name [{}].", remoteHostName);
 
-        return StringUtils.isNotEmpty(remoteHostName) ? remoteHostName : remoteIp;
+        return StringUtils.isNotBlank(remoteHostName) ? remoteHostName : remoteIp;
     }
 }

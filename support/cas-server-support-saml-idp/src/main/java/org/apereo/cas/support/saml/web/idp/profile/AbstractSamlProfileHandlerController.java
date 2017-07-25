@@ -24,8 +24,10 @@ import org.apereo.cas.support.saml.services.SamlRegisteredService;
 import org.apereo.cas.support.saml.services.idp.metadata.SamlRegisteredServiceServiceProviderMetadataFacade;
 import org.apereo.cas.support.saml.services.idp.metadata.cache.SamlRegisteredServiceCachingMetadataResolver;
 import org.apereo.cas.support.saml.web.idp.profile.builders.SamlProfileObjectBuilder;
-import org.apereo.cas.support.saml.web.idp.profile.builders.enc.SamlObjectSigner;
+import org.apereo.cas.support.saml.web.idp.profile.builders.enc.BaseSamlObjectSigner;
+import org.apereo.cas.support.saml.web.idp.profile.builders.enc.SamlObjectSignatureValidator;
 import org.apereo.cas.util.EncodingUtils;
+import org.apereo.cas.web.support.WebUtils;
 import org.jasig.cas.client.authentication.AuthenticationRedirectStrategy;
 import org.jasig.cas.client.authentication.DefaultAuthenticationRedirectStrategy;
 import org.jasig.cas.client.util.CommonUtils;
@@ -42,6 +44,8 @@ import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.ModelAndView;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
@@ -67,7 +71,7 @@ import java.util.TreeSet;
 @Controller
 public abstract class AbstractSamlProfileHandlerController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSamlProfileHandlerController.class);
-    
+
     /**
      * Authentication support to handle credentials and authn subsystem calls.
      */
@@ -76,7 +80,12 @@ public abstract class AbstractSamlProfileHandlerController {
     /**
      * The Saml object signer.
      */
-    protected SamlObjectSigner samlObjectSigner;
+    protected BaseSamlObjectSigner samlObjectSigner;
+
+    /**
+     * Signature validator.
+     */
+    protected SamlObjectSignatureValidator samlObjectSignatureValidator;
 
     /**
      * The Parser pool.
@@ -172,8 +181,9 @@ public abstract class AbstractSamlProfileHandlerController {
      * @param logoutUrl                                    the logout url
      * @param forceSignedLogoutRequests                    the force signed logout requests
      * @param singleLogoutCallbacksDisabled                the single logout callbacks disabled
+     * @param samlObjectSignatureValidator                 the saml object signature validator
      */
-    public AbstractSamlProfileHandlerController(final SamlObjectSigner samlObjectSigner,
+    public AbstractSamlProfileHandlerController(final BaseSamlObjectSigner samlObjectSigner,
                                                 final ParserPool parserPool,
                                                 final AuthenticationSystemSupport authenticationSystemSupport,
                                                 final ServicesManager servicesManager,
@@ -188,7 +198,8 @@ public abstract class AbstractSamlProfileHandlerController {
                                                 final String loginUrl,
                                                 final String logoutUrl,
                                                 final boolean forceSignedLogoutRequests,
-                                                final boolean singleLogoutCallbacksDisabled) {
+                                                final boolean singleLogoutCallbacksDisabled,
+                                                final SamlObjectSignatureValidator samlObjectSignatureValidator) {
         this.samlObjectSigner = samlObjectSigner;
         this.parserPool = parserPool;
         this.servicesManager = servicesManager;
@@ -205,6 +216,7 @@ public abstract class AbstractSamlProfileHandlerController {
         this.forceSignedLogoutRequests = forceSignedLogoutRequests;
         this.singleLogoutCallbacksDisabled = singleLogoutCallbacksDisabled;
         this.authenticationSystemSupport = authenticationSystemSupport;
+        this.samlObjectSignatureValidator = samlObjectSignatureValidator;
     }
 
     /**
@@ -224,10 +236,9 @@ public abstract class AbstractSamlProfileHandlerController {
      * @param authnRequest      the authn request
      * @return the saml metadata adaptor for service
      */
-    protected SamlRegisteredServiceServiceProviderMetadataFacade getSamlMetadataFacadeFor(final SamlRegisteredService registeredService,
-                                                                                          final AuthnRequest authnRequest) {
-        return SamlRegisteredServiceServiceProviderMetadataFacade
-                .get(this.samlRegisteredServiceCachingMetadataResolver, registeredService, authnRequest);
+    protected Optional<SamlRegisteredServiceServiceProviderMetadataFacade> getSamlMetadataFacadeFor(final SamlRegisteredService registeredService,
+                                                                                                    final AuthnRequest authnRequest) {
+        return SamlRegisteredServiceServiceProviderMetadataFacade.get(this.samlRegisteredServiceCachingMetadataResolver, registeredService, authnRequest);
     }
 
     /**
@@ -237,8 +248,8 @@ public abstract class AbstractSamlProfileHandlerController {
      * @param entityId          the entity id
      * @return the saml metadata adaptor for service
      */
-    protected SamlRegisteredServiceServiceProviderMetadataFacade getSamlMetadataFacadeFor(final SamlRegisteredService registeredService,
-                                                                                          final String entityId) {
+    protected Optional<SamlRegisteredServiceServiceProviderMetadataFacade> getSamlMetadataFacadeFor(final SamlRegisteredService registeredService,
+                                                                                                    final String entityId) {
         return SamlRegisteredServiceServiceProviderMetadataFacade
                 .get(this.samlRegisteredServiceCachingMetadataResolver, registeredService, entityId);
     }
@@ -391,7 +402,7 @@ public abstract class AbstractSamlProfileHandlerController {
 
         final String urlToRedirectTo = buildRedirectUrlByRequestedAuthnContext(initialUrl, authnRequest, request);
 
-        LOGGER.debug("Redirecting SAML authN request to \"[{}]\"", urlToRedirectTo);
+        LOGGER.debug("Redirecting SAML authN request to [{}]", urlToRedirectTo);
         final AuthenticationRedirectStrategy authenticationRedirectStrategy = new DefaultAuthenticationRedirectStrategy();
         authenticationRedirectStrategy.redirect(request, response, urlToRedirectTo);
 
@@ -407,8 +418,7 @@ public abstract class AbstractSamlProfileHandlerController {
      */
     protected String buildRedirectUrlByRequestedAuthnContext(final String initialUrl, final AuthnRequest authnRequest,
                                                              final HttpServletRequest request) {
-        if (authnRequest.getRequestedAuthnContext() == null
-                || authenticationContextClassMappings == null
+        if (authnRequest.getRequestedAuthnContext() == null || authenticationContextClassMappings == null
                 || this.authenticationContextClassMappings.isEmpty()) {
             return initialUrl;
         }
@@ -444,8 +454,7 @@ public abstract class AbstractSamlProfileHandlerController {
      */
     protected String constructServiceUrl(final HttpServletRequest request,
                                          final HttpServletResponse response,
-                                         final Pair<? extends SignableSAMLObject, MessageContext> pair)
-            throws SamlException {
+                                         final Pair<? extends SignableSAMLObject, MessageContext> pair) throws SamlException {
         final AuthnRequest authnRequest = AuthnRequest.class.cast(pair.getLeft());
         final MessageContext messageContext = pair.getRight();
 
@@ -503,27 +512,47 @@ public abstract class AbstractSamlProfileHandlerController {
             final HttpServletRequest request) throws Exception {
         final AuthnRequest authnRequest = AuthnRequest.class.cast(authenticationContext.getKey());
         final String issuer = SamlIdPUtils.getIssuerFromSamlRequest(authnRequest);
+        LOGGER.debug("Located issuer [{}] from authentication request", issuer);
+
         final SamlRegisteredService registeredService = verifySamlRegisteredService(issuer);
-
         LOGGER.debug("Fetching saml metadata adaptor for [{}]", issuer);
-        final SamlRegisteredServiceServiceProviderMetadataFacade adaptor =
-                SamlRegisteredServiceServiceProviderMetadataFacade.get(this.samlRegisteredServiceCachingMetadataResolver,
-                        registeredService, authnRequest);
+        final Optional<SamlRegisteredServiceServiceProviderMetadataFacade> adaptor =
+                SamlRegisteredServiceServiceProviderMetadataFacade.get(this.samlRegisteredServiceCachingMetadataResolver, registeredService, authnRequest);
 
-        final MessageContext ctx = authenticationContext.getValue();
-        if (!SAMLBindingSupport.isMessageSigned(ctx)) {
-            if (adaptor.isAuthnRequestsSigned()) {
-                LOGGER.error("Metadata for [{}] says authentication requests are signed, yet this authentication request is not",
-                        adaptor.getEntityId());
-                throw new SAMLException("AuthN request is not signed but should be");
-            }
-            LOGGER.info("Authentication request is not signed, so there is no need to verify its signature.");
-        } else {
-            this.samlObjectSigner.verifySamlProfileRequestIfNeeded(authnRequest, adaptor.getMetadataResolver(), request, ctx);
+        if (!adaptor.isPresent()) {
+            LOGGER.warn("No metadata could be found for [{}]", issuer);
+            throw new UnauthorizedServiceException(UnauthorizedServiceException.CODE_UNAUTHZ_SERVICE, "Cannot find metadata linked to " + issuer);
         }
 
+        verifyAuthenticationContextSignature(authenticationContext, request, authnRequest, adaptor.get());
         SamlUtils.logSamlObject(this.configBean, authnRequest);
-        return Pair.of(registeredService, adaptor);
+        return Pair.of(registeredService, adaptor.get());
+    }
+
+    /**
+     * Verify authentication context signature.
+     *
+     * @param authenticationContext the authentication context
+     * @param request               the request
+     * @param authnRequest          the authn request
+     * @param adaptor               the adaptor
+     * @throws Exception the exception
+     */
+    protected void verifyAuthenticationContextSignature(final Pair<? extends SignableSAMLObject, MessageContext> authenticationContext,
+                                                        final HttpServletRequest request, final AuthnRequest authnRequest,
+                                                        final SamlRegisteredServiceServiceProviderMetadataFacade adaptor) throws Exception {
+        final MessageContext ctx = authenticationContext.getValue();
+        if (!SAMLBindingSupport.isMessageSigned(ctx)) {
+            LOGGER.debug("The authentication context is not signed");
+            if (adaptor.isAuthnRequestsSigned()) {
+                LOGGER.error("Metadata for [{}] says authentication requests are signed, yet authentication request is not", adaptor.getEntityId());
+                throw new SAMLException("AuthN request is not signed but should be");
+            }
+            LOGGER.debug("Authentication request is not signed, so there is no need to verify its signature.");
+        } else {
+            LOGGER.debug("The authentication context is signed; Proceeding to validate signatures...");
+            this.samlObjectSignatureValidator.verifySamlProfileRequestIfNeeded(authnRequest, adaptor, request, ctx);
+        }
     }
 
     /**
@@ -533,19 +562,43 @@ public abstract class AbstractSamlProfileHandlerController {
      * @param request               the request
      * @param authenticationContext the authentication context
      * @param casAssertion          the cas assertion
+     * @param binding               the binding
      */
     protected void buildSamlResponse(final HttpServletResponse response,
                                      final HttpServletRequest request,
                                      final Pair<AuthnRequest, MessageContext> authenticationContext,
-                                     final Assertion casAssertion) {
+                                     final Assertion casAssertion,
+                                     final String binding) {
         final String issuer = SamlIdPUtils.getIssuerFromSamlRequest(authenticationContext.getKey());
+        LOGGER.debug("Located issuer [{}] from authentication context", issuer);
+
         final SamlRegisteredService registeredService = verifySamlRegisteredService(issuer);
-        final SamlRegisteredServiceServiceProviderMetadataFacade adaptor =
+
+        LOGGER.debug("Located SAML metadata for [{}]", registeredService);
+        final Optional<SamlRegisteredServiceServiceProviderMetadataFacade> adaptor =
                 getSamlMetadataFacadeFor(registeredService, authenticationContext.getKey());
 
-        LOGGER.debug("Preparing SAML response for [{}]", adaptor.getEntityId());
-        this.responseBuilder.build(authenticationContext.getKey(), request, response, casAssertion, registeredService, adaptor);
-        LOGGER.info("Built the SAML response for [{}]", adaptor.getEntityId());
+        if (!adaptor.isPresent()) {
+            throw new UnauthorizedServiceException(UnauthorizedServiceException.CODE_UNAUTHZ_SERVICE, "Cannot find metadata linked to " + issuer);
+        }
+        LOGGER.debug("Preparing SAML response for [{}]", adaptor.get().getEntityId());
+        final SamlRegisteredServiceServiceProviderMetadataFacade facade = adaptor.get();
+        final AuthnRequest authnRequest = authenticationContext.getKey();
+        this.responseBuilder.build(authnRequest, request, response, 
+                casAssertion, registeredService, facade, binding);
+        LOGGER.info("Built the SAML response for [{}]", facade.getEntityId());
+    }
+
+    /**
+     * Handle unauthorized service exception.
+     *
+     * @param req the req
+     * @param ex  the ex
+     * @return the model and view
+     */
+    @ExceptionHandler(UnauthorizedServiceException.class)
+    public ModelAndView handleUnauthorizedServiceException(final HttpServletRequest req, final Exception ex) {
+        return WebUtils.produceUnauthorizedErrorView();
     }
 }
 

@@ -1,8 +1,7 @@
 package org.apereo.cas.web.flow;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apereo.cas.configuration.model.support.gua.GraphicalUserAuthenticationProperties;
-import org.springframework.webflow.action.AbstractAction;
+import org.apereo.cas.services.ServicesManager;
+import org.springframework.webflow.action.EventFactorySupport;
 import org.springframework.webflow.execution.Event;
 import org.springframework.webflow.execution.RequestContext;
 
@@ -12,16 +11,18 @@ import org.springframework.webflow.execution.RequestContext;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
-public class PrepareForGraphicalAuthenticationAction extends AbstractAction {
-    private final GraphicalUserAuthenticationProperties guaProperties;
+public class PrepareForGraphicalAuthenticationAction extends InitializeLoginAction {
 
-    public PrepareForGraphicalAuthenticationAction(final GraphicalUserAuthenticationProperties guaProperties) {
-        this.guaProperties = guaProperties;
+    public PrepareForGraphicalAuthenticationAction(final ServicesManager servicesManager) {
+        super(servicesManager);
     }
 
     @Override
     protected Event doExecute(final RequestContext requestContext) throws Exception {
-        requestContext.getFlowScope().put("guaEnabled", StringUtils.isNotBlank(guaProperties.getImageAttribute()));
-        return success();
+        requestContext.getFlowScope().put("guaEnabled", true);
+        if (!requestContext.getFlowScope().contains("guaUsername")) {
+            return new EventFactorySupport().event(this, GraphicalUserAuthenticationWebflowConfigurer.TRANSITION_ID_GUA_GET_USERID);
+        }
+        return super.doExecute(requestContext);
     }
 }

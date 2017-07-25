@@ -1,11 +1,10 @@
 package org.apereo.cas.web;
 
-import org.apereo.cas.config.CasEmbeddedContainerConfiguration;
+import org.apereo.cas.CasEmbeddedContainerUtils;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.util.spring.boot.CasBanner;
-import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.Banner;
 import org.springframework.boot.actuate.autoconfigure.MetricsDropwizardAutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
@@ -19,13 +18,13 @@ import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cloud.config.server.EnableConfigServer;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.ImportResource;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-import java.util.Collections;
+import java.util.Map;
 
 /**
  * This is {@link CasWebApplication}.
@@ -36,8 +35,8 @@ import java.util.Collections;
 @ImportResource(locations = {
         "classpath:/deployerConfigContext.groovy",
         "classpath:/deployerConfigContext.xml"})
-@SpringBootConfiguration
-@EnableAutoConfiguration(
+@EnableDiscoveryClient
+@SpringBootApplication(
         exclude = {HibernateJpaAutoConfiguration.class,
                 JerseyAutoConfiguration.class,
                 GroovyTemplateAutoConfiguration.class,
@@ -50,9 +49,8 @@ import java.util.Collections;
                 DataSourceTransactionManagerAutoConfiguration.class,
                 MetricsDropwizardAutoConfiguration.class,
                 RedisRepositoriesAutoConfiguration.class})
-@EnableConfigServer
-@EnableAsync
 @EnableConfigurationProperties(CasConfigurationProperties.class)
+@EnableAsync
 @EnableTransactionManagement(proxyTargetClass = true)
 @EnableScheduling
 public class CasWebApplication {
@@ -61,17 +59,21 @@ public class CasWebApplication {
      */
     protected CasWebApplication() {
     }
-
+        
     /**
      * Main entry point of the CAS web application.
      *
      * @param args the args
      */
     public static void main(final String[] args) {
+        final Map<String, Object> properties = CasEmbeddedContainerUtils.getRuntimeProperties(Boolean.TRUE);
+        final Banner banner = CasEmbeddedContainerUtils.getCasBannerInstance();
         new SpringApplicationBuilder(CasWebApplication.class)
-                .banner(new CasBanner())
-                .properties(Collections.singletonMap(CasEmbeddedContainerConfiguration.EMBEDDED_CONTAINER_CONFIG_ACTIVE, Boolean.TRUE))
+                .banner(banner)
+                .web(true)
+                .properties(properties)
                 .logStartupInfo(true)
+                .contextClass(CasWebApplicationContext.class)
                 .run(args);
     }
 }

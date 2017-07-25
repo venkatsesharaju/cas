@@ -12,16 +12,19 @@ import jcifs.smb.SmbSession;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.authentication.BasicCredentialMetaData;
 import org.apereo.cas.authentication.Credential;
+import org.apereo.cas.authentication.DefaultHandlerResult;
 import org.apereo.cas.authentication.HandlerResult;
 import org.apereo.cas.authentication.PreventedException;
-import org.apereo.cas.support.spnego.authentication.principal.SpnegoCredential;
-import org.apereo.cas.authentication.DefaultHandlerResult;
 import org.apereo.cas.authentication.handler.support.AbstractPreAndPostProcessingAuthenticationHandler;
+import org.apereo.cas.authentication.principal.PrincipalFactory;
+import org.apereo.cas.services.ServicesManager;
+import org.apereo.cas.support.spnego.authentication.principal.SpnegoCredential;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.security.auth.login.FailedLoginException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 
 /**
  * Implementation of an AuthenticationHandler for NTLM supports.
@@ -50,7 +53,9 @@ public class NtlmAuthenticationHandler extends AbstractPreAndPostProcessingAuthe
 
     private final String includePattern;
 
-    public NtlmAuthenticationHandler(final boolean loadBalance, final String domainController, final String includePattern) {
+    public NtlmAuthenticationHandler(final String name, final ServicesManager servicesManager, final PrincipalFactory principalFactory,
+                                     final boolean loadBalance, final String domainController, final String includePattern) {
+        super(name, servicesManager, principalFactory, null);
         this.loadBalance = loadBalance;
         if (StringUtils.isBlank(domainController)) {
             this.domainController = DEFAULT_DOMAIN_CONTROLLER;
@@ -65,20 +70,14 @@ public class NtlmAuthenticationHandler extends AbstractPreAndPostProcessingAuthe
         final SpnegoCredential ntlmCredential = (SpnegoCredential) credential;
         final byte[] src = ntlmCredential.getInitToken();
 
-        UniAddress dc = null;
-
+        final UniAddress dc;
         boolean success = false;
         try {
             if (this.loadBalance) {
                 // find the first dc that matches the includepattern
                 if (StringUtils.isNotBlank(this.includePattern)) {
                     final NbtAddress[] dcs = NbtAddress.getAllByName(this.domainController, NBT_ADDRESS_TYPE, null, null);
-                    for (final NbtAddress dc2 : dcs) {
-                        if (dc2.getHostAddress().matches(this.includePattern)) {
-                            dc = new UniAddress(dc2);
-                            break;
-                        }
-                    }
+                    dc = Arrays.stream(dcs).filter(dc2 -> dc2.getHostAddress().matches(this.includePattern)).findFirst().map(UniAddress::new).orElse(null);
                 } else {
                     dc = new UniAddress(NbtAddress.getByName(this.domainController, NBT_ADDRESS_TYPE, null));
                 }

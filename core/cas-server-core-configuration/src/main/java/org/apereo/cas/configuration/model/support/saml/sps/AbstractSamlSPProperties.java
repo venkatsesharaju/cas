@@ -2,6 +2,8 @@ package org.apereo.cas.configuration.model.support.saml.sps;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This is {@link AbstractSamlSPProperties}.
@@ -18,6 +20,24 @@ public abstract class AbstractSamlSPProperties {
     private List<String> attributes = new ArrayList<>();
     private String signatureLocation;
     private List<String> entityIds = new ArrayList<>();
+    private boolean signResponses = true;
+    private boolean signAssertions;
+
+    public boolean isSignResponses() {
+        return signResponses;
+    }
+
+    public void setSignResponses(final boolean signResponses) {
+        this.signResponses = signResponses;
+    }
+
+    public boolean isSignAssertions() {
+        return signAssertions;
+    }
+
+    public void setSignAssertions(final boolean signAssertions) {
+        this.signAssertions = signAssertions;
+    }
 
     public List<String> getEntityIds() {
         return entityIds;
@@ -49,6 +69,15 @@ public abstract class AbstractSamlSPProperties {
 
     public void setAttributes(final List<String> attributes) {
         this.attributes = attributes;
+    }
+
+    /**
+     * Sets attributes.
+     *
+     * @param attributes the attributes
+     */
+    public void setAttributes(final String... attributes) {
+        setAttributes(Stream.of(attributes).collect(Collectors.toList()));
     }
 
     public String getNameIdAttribute() {

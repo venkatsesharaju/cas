@@ -7,10 +7,12 @@ import org.apereo.cas.support.saml.OpenSamlConfigBean;
 import org.apereo.cas.util.CompressionUtils;
 import org.apereo.cas.util.DateTimeUtils;
 import org.apereo.cas.util.EncodingUtils;
+import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.common.SAMLVersion;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.opensaml.saml.saml2.core.Attribute;
 import org.opensaml.saml.saml2.core.AttributeStatement;
+import org.opensaml.saml.saml2.core.AttributeValue;
 import org.opensaml.saml.saml2.core.Audience;
 import org.opensaml.saml.saml2.core.AudienceRestriction;
 import org.opensaml.saml.saml2.core.AuthnContext;
@@ -37,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * This is {@link AbstractSaml20ObjectBuilder}.
@@ -47,7 +50,7 @@ import java.util.Map;
  */
 public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSaml20ObjectBuilder.class);
-    
+
     private static final int HEX_HIGH_BITS_BITWISE_FLAG = 0x0f;
     private static final long serialVersionUID = -4325127376598205277L;
 
@@ -99,8 +102,12 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
         samlResponse.setID(id);
         samlResponse.setIssueInstant(DateTimeUtils.dateTimeOf(issueInstant));
         samlResponse.setVersion(SAMLVersion.VERSION_20);
-        samlResponse.setInResponseTo(recipient);
-        setInResponseToForSamlResponseIfNeeded(service, samlResponse);
+        if (StringUtils.isNotBlank(recipient)) {
+            LOGGER.debug("Setting provided RequestId {} as InResponseTo", recipient);
+            samlResponse.setInResponseTo(recipient);
+        } else {
+            LOGGER.debug("No recipient is provided. Skipping InResponseTo");
+        }
         return samlResponse;
     }
 
@@ -196,6 +203,19 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
     }
 
     /**
+     * Add saml2 attribute values for attribute.
+     *
+     * @param attributeName  the attribute name
+     * @param attributeValue the attribute value
+     * @param attributeList  the attribute list
+     */
+    public void addAttributeValuesToSaml2Attribute(final String attributeName,
+                                                   final Object attributeValue,
+                                                   final List<XMLObject> attributeList) {
+        addAttributeValuesToSamlAttribute(attributeName, attributeValue, attributeList, AttributeValue.DEFAULT_ELEMENT_NAME);
+    }
+
+    /**
      * New attribute.
      *
      * @param setFriendlyName       the set friendly name
@@ -213,7 +233,7 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
         if (setFriendlyName) {
             attribute.setFriendlyName(e.getKey());
         }
-        addAttributeValuesToSamlAttribute(e.getKey(), e.getValue(), attribute.getAttributeValues());
+        addAttributeValuesToSaml2Attribute(e.getKey(), e.getValue(), attribute.getAttributeValues());
 
         if (!configuredNameFormats.isEmpty() && configuredNameFormats.containsKey(attribute.getName())) {
             final String nameFormat = configuredNameFormats.get(attribute.getName());
@@ -246,9 +266,14 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
      *
      * @param contextClassRef the context class ref such as {@link AuthnContext#PASSWORD_AUTHN_CTX}
      * @param authnInstant    the authn instant
+     * @param sessionIndex    the session index
      * @return the authn statement
      */
-    public AuthnStatement newAuthnStatement(final String contextClassRef, final ZonedDateTime authnInstant) {
+    public AuthnStatement newAuthnStatement(final String contextClassRef, final ZonedDateTime authnInstant,
+                                            final String sessionIndex) {
+        LOGGER.debug("Building authentication statement with context class ref [{}] @ [{}] with index [{}]",
+                contextClassRef, authnInstant, sessionIndex);
+
         final AuthnStatement stmt = newSamlObject(AuthnStatement.class);
         final AuthnContext ctx = newSamlObject(AuthnContext.class);
 
@@ -258,7 +283,7 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
         ctx.setAuthnContextClassRef(classRef);
         stmt.setAuthnContext(ctx);
         stmt.setAuthnInstant(DateTimeUtils.dateTimeOf(authnInstant));
-
+        stmt.setSessionIndex(sessionIndex);
         return stmt;
     }
 
@@ -271,6 +296,7 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
      * @return the conditions
      */
     public Conditions newConditions(final ZonedDateTime notBefore, final ZonedDateTime notOnOrAfter, final String audienceUri) {
+        LOGGER.debug("Building conditions for audience [{}] that enforce not-before [{}] and not-after [{}]", audienceUri, notBefore, notOnOrAfter);
         final Conditions conditions = newSamlObject(Conditions.class);
         conditions.setNotBefore(DateTimeUtils.dateTimeOf(notBefore));
         conditions.setNotOnOrAfter(DateTimeUtils.dateTimeOf(notOnOrAfter));
@@ -297,6 +323,8 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
                               final String recipient, final ZonedDateTime notOnOrAfter,
                               final String inResponseTo) {
 
+        LOGGER.debug("Building subject for NameID [{}]/[{}] and recipient [{}], in response to [{}]",
+                nameIdValue, nameIdFormat, recipient, inResponseTo);
         final SubjectConfirmation confirmation = newSamlObject(SubjectConfirmation.class);
         confirmation.setMethod(SubjectConfirmation.METHOD_BEARER);
 
@@ -304,12 +332,13 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
         data.setRecipient(recipient);
         data.setNotOnOrAfter(DateTimeUtils.dateTimeOf(notOnOrAfter));
         data.setInResponseTo(inResponseTo);
-
         confirmation.setSubjectConfirmationData(data);
 
         final Subject subject = newSamlObject(Subject.class);
         subject.setNameID(getNameID(nameIdFormat, nameIdValue));
         subject.getSubjectConfirmations().add(confirmation);
+
+        LOGGER.debug("Built subject [{}]", subject);
         return subject;
     }
 
@@ -330,12 +359,12 @@ public abstract class AbstractSaml20ObjectBuilder extends AbstractSamlObjectBuil
         generator.nextBytes(bytes);
 
         final char[] chars = new char[charsLength];
-        for (int i = 0; i < bytes.length; i++) {
+        IntStream.range(0, bytes.length).forEach(i -> {
             final int left = bytes[i] >> shiftLength & HEX_HIGH_BITS_BITWISE_FLAG;
             final int right = bytes[i] & HEX_HIGH_BITS_BITWISE_FLAG;
             chars[i * 2] = charMappings[left];
             chars[i * 2 + 1] = charMappings[right];
-        }
+        });
         return String.valueOf(chars);
     }
 

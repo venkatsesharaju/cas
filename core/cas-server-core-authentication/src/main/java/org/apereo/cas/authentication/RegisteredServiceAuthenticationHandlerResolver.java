@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * This is {@link RegisteredServiceAuthenticationHandlerResolver}
@@ -62,12 +63,12 @@ public class RegisteredServiceAuthenticationHandlerResolver implements Authentic
                 }
                 LOGGER.debug("Authentication handlers for this transaction are [{}]", handlerSet);
                 return handlerSet;
-            } else {
-                LOGGER.debug("No specific authentication handlers are required for this transaction");
             }
+            LOGGER.debug("No specific authentication handlers are required for this transaction");
         }
 
-        LOGGER.debug("Authentication handlers used for this transaction are [[{}]]", candidateHandlers);
+        final String handlers = candidateHandlers.stream().map(AuthenticationHandler::getName).collect(Collectors.joining());
+        LOGGER.debug("Authentication handlers used for this transaction are [{}]", handlers);
         return candidateHandlers;
     }
 }

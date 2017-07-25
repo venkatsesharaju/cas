@@ -87,6 +87,7 @@ public class SamlMetadataUIConfiguration {
         return new SamlMetadataUIWebflowConfigurer(flowBuilderServices, loginFlowDefinitionRegistry, samlMetadataUIParserAction());
     }
 
+    @ConditionalOnMissingBean(name = "samlMetadataUIParserAction")
     @Bean
     public Action samlMetadataUIParserAction() {
         final String parameter = StringUtils.defaultIfEmpty(casProperties.getSamlMetadataUi().getParameter(),
@@ -127,7 +128,7 @@ public class SamlMetadataUIConfiguration {
             }
 
             boolean addResource = true;
-            if (StringUtils.isNotEmpty(signingKey)) {
+            if (StringUtils.isNotBlank(signingKey)) {
                 final SignatureValidationFilter sigFilter = SamlUtils.buildSignatureValidationFilter(this.resourceLoader, signingKey);
                 if (sigFilter != null) {
                     sigFilter.setRequireSignedRoot(casProperties.getSamlMetadataUi().isRequireSignedRoot());

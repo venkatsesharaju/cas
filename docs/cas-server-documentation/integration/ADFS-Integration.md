@@ -69,7 +69,16 @@ to put together an implementation of `WsFederationAttributeMutator` that changes
 ```java
 package org.apereo.cas.support.wsfederation;
 
-@Component("wsfedAttributeMutator")
+@Configuration("myWsFedConfiguration")
+@EnableConfigurationProperties(CasConfigurationProperties.class)
+public class MyWsFedConfiguration {
+
+  @Bean
+  public WsFederationAttributeMutator wsfedAttributeMutator() {
+      return new WsFederationAttributeMutatorImpl(...);
+  }
+}
+
 public class WsFederationAttributeMutatorImpl implements WsFederationAttributeMutator {
     public void modifyAttributes(...) {
         ...
@@ -111,4 +120,5 @@ registry to match the following:
 
 ## Troubleshooting
 
-Be aware of clock drift issues between CAS and the ADFS server. Validation failures of the response do show up in the logs, and the request is routed back to ADFA again, causing redirect loops.
+Be aware of clock drift issues between CAS and the ADFS server. Validation failures of the response do show up in the logs, and the request is routed back to
+ ADFS again, causing redirect loops.

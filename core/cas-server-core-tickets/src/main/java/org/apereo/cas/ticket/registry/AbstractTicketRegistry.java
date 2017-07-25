@@ -46,7 +46,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
     }
 
     /**
-     * {@inheritDoc}
+     *
      *
      * @return specified ticket from the registry
      * @throws IllegalArgumentException if class is null.
@@ -90,7 +90,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
             return getTickets().stream().filter(ServiceTicket.class::isInstance).count();
         } catch (final Throwable t) {
             LOGGER.trace("serviceTicketCount() operation is not implemented by the ticket registry instance [{}]. "
-                            + "Message is: [{}] Returning unknown as [[{}]]",
+                            + "Message is: [{}] Returning unknown as [{}]",
                     this.getClass().getName(), t.getMessage(), Long.MIN_VALUE);
             return Long.MIN_VALUE;
         }
@@ -111,7 +111,7 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
 
         if (ticket instanceof TicketGrantingTicket) {
             if (ticket instanceof ProxyGrantingTicket) {
-                LOGGER.debug("Removing proxy-granting ticket [[{}]]", ticketId);
+                LOGGER.debug("Removing proxy-granting ticket [{}]", ticketId);
             }
 
             LOGGER.debug("Removing children of ticket [{}] from the registry.", ticket.getId());
@@ -214,11 +214,11 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
             return null;
         }
 
-        LOGGER.info("Encoding [{}]", ticket);
+        LOGGER.debug("Encoding ticket [{}]", ticket);
         final byte[] encodedTicketObject = SerializationUtils.serializeAndEncodeObject(this.cipherExecutor, ticket);
         final String encodedTicketId = encodeTicketId(ticket.getId());
         final Ticket encodedTicket = new EncodedTicket(ByteSource.wrap(encodedTicketObject), encodedTicketId);
-        LOGGER.info("Created [{}]", encodedTicket);
+        LOGGER.debug("Created encoded ticket [{}]", encodedTicket);
         return encodedTicket;
     }
 
@@ -240,12 +240,12 @@ public abstract class AbstractTicketRegistry implements TicketRegistry {
                 return null;
             }
 
-            LOGGER.info("Attempting to decode [{}]", result);
+            LOGGER.debug("Attempting to decode [{}]", result);
             final EncodedTicket encodedTicket = (EncodedTicket) result;
 
             final Ticket ticket = SerializationUtils.decodeAndDeserializeObject(
                     encodedTicket.getEncoded(), this.cipherExecutor, Ticket.class);
-            LOGGER.info("Decoded [{}]", ticket);
+            LOGGER.debug("Decoded ticket to [{}]", ticket);
             return ticket;
         } catch (final Exception e) {
             throw Throwables.propagate(e);

@@ -2,6 +2,7 @@ package org.apereo.cas.config.support.authentication;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.authentication.AuthenticationEventExecutionPlan;
+import org.apereo.cas.authentication.AuthenticationEventExecutionPlanConfigurer;
 import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.principal.PrincipalResolver;
 import org.apereo.cas.configuration.CasConfigurationProperties;
@@ -43,7 +44,7 @@ public class AcceptUsersAuthenticationEventExecutionPlanConfiguration implements
                             + "While this is generally useful for demo purposes, it is STRONGLY recommended "
                             + "that you DISABLE this authentication method (by SETTING 'cas.authn.accept.users' "
                             + "to a blank value) and switch to a mode that is more suitable for production.";
-            AsciiArtUtils.printAsciiArt(LOGGER, "STOP!", header);
+            AsciiArtUtils.printAsciiArtWarning(LOGGER, "STOP!", header);
             plan.registerAuthenticationHandlerWithPrincipalResolver(acceptUsersAuthenticationHandler, personDirectoryPrincipalResolver);
         }
     }

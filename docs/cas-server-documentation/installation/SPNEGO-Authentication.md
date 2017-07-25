@@ -38,7 +38,23 @@ SPNEGO support is enabled by including the following dependency in the WAR overl
 </dependency>
 ```
 
+You may also need to declare the following Maven repository in
+your CAS overlay to be able to resolve dependencies:
+
+```xml
+<repositories>
+    ...
+    <repository>
+        <id>jasig-releases</id>
+        <url>http://developer.jasig.org/repo/content/groups/m2-legacy</url>
+    </repository>
+    ...
+</repositories>
+```
+
 ## Configuration
+
+The following steps are required to turn on the SPNEGO functionality.
 
 ### Create SPN Account
 
@@ -133,17 +149,6 @@ Valid starting       Expires              Service principal
 zone.
 * Firefox - Set the `network.negotiate-auth.trusted-uris` configuration parameter in `about:config` to the CAS server
 URL, e.g. `https://cas.example.com`.
-
-### Webflow Configuration
-
-Replace the success transition of `initializeLoginForm` from `viewLoginForm` to `startSpnegoAuthenticate`:
-
-```xml
-<action-state id="initializeLoginForm">
-    <evaluate expression="initializeLoginAction" />
-    <transition on="success" to="startSpnegoAuthenticate"/>
-</action-state>
-```
 
 ### Authentication Configuration
 

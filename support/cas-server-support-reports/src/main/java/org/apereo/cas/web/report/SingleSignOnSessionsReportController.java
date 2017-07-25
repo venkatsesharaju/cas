@@ -10,8 +10,6 @@ import org.apereo.cas.util.DateTimeUtils;
 import org.apereo.cas.util.ISOStandardDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.endpoint.mvc.AbstractNamedMvcEndpoint;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.async.WebAsyncTask;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,14 +34,13 @@ import java.util.concurrent.Callable;
  * @author Dmitriy Kopylenko
  * @since 4.1
  */
-public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoint {
+public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
 
     private static final String VIEW_SSO_SESSIONS = "monitoring/viewSsoSessions";
     private static final String STATUS = "status";
     private static final String TICKET_GRANTING_TICKET = "ticketGrantingTicket";
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleSignOnSessionsReportController.class);
 
-    @Autowired
     private CasConfigurationProperties casProperties;
 
     private enum SsoSessionReportOptions {
@@ -105,9 +103,11 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
 
     private final CentralAuthenticationService centralAuthenticationService;
 
-    public SingleSignOnSessionsReportController(final CentralAuthenticationService centralAuthenticationService) {
-        super("ssosessions", "/ssosessions", true, true);
+    public SingleSignOnSessionsReportController(final CentralAuthenticationService centralAuthenticationService,
+                                                final CasConfigurationProperties casProperties) {
+        super("ssosessions", "/ssosessions", casProperties.getMonitor().getEndpoints().getSingleSignOnReport(), casProperties);
         this.centralAuthenticationService = centralAuthenticationService;
+        this.casProperties = casProperties;
     }
 
     /**
@@ -120,16 +120,10 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
         final Collection<Map<String, Object>> activeSessions = new ArrayList<>();
         final ISOStandardDateFormat dateFormat = new ISOStandardDateFormat();
 
-        for (final Ticket ticket : getNonExpiredTicketGrantingTickets()) {
-            final TicketGrantingTicket tgt = (TicketGrantingTicket) ticket;
-
-            if (option == SsoSessionReportOptions.DIRECT && tgt.getProxiedBy() != null) {
-                continue;
-            }
-
+        getNonExpiredTicketGrantingTickets().stream().map(TicketGrantingTicket.class::cast)
+                .filter(tgt -> !(option == SsoSessionReportOptions.DIRECT && tgt.getProxiedBy() != null)).forEach(tgt -> {
             final Authentication authentication = tgt.getAuthentication();
             final Principal principal = authentication.getPrincipal();
-
             final Map<String, Object> sso = new HashMap<>(SsoSessionAttributeKeys.values().length);
             sso.put(SsoSessionAttributeKeys.AUTHENTICATED_PRINCIPAL.toString(), principal.getId());
             sso.put(SsoSessionAttributeKeys.AUTHENTICATION_DATE.toString(), authentication.getAuthenticationDate());
@@ -139,7 +133,6 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
             sso.put(SsoSessionAttributeKeys.TICKET_GRANTING_TICKET.toString(), tgt.getId());
             sso.put(SsoSessionAttributeKeys.PRINCIPAL_ATTRIBUTES.toString(), principal.getAttributes());
             sso.put(SsoSessionAttributeKeys.AUTHENTICATION_ATTRIBUTES.toString(), authentication.getAttributes());
-
             if (option != SsoSessionReportOptions.DIRECT) {
                 if (tgt.getProxiedBy() != null) {
                     sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.TRUE);
@@ -148,11 +141,9 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
                     sso.put(SsoSessionAttributeKeys.IS_PROXIED.toString(), Boolean.FALSE);
                 }
             }
-
             sso.put(SsoSessionAttributeKeys.AUTHENTICATED_SERVICES.toString(), tgt.getServices());
-
             activeSessions.add(sso);
-        }
+        });
         return activeSessions;
     }
 
@@ -168,12 +159,17 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
     /**
      * Endpoint for getting SSO Sessions in JSON format.
      *
-     * @param type the type
+     * @param type     the type
+     * @param request  the request
+     * @param response the response
      * @return the sso sessions
      */
     @GetMapping(value = "/getSsoSessions")
     @ResponseBody
-    public WebAsyncTask<Map<String, Object>> getSsoSessions(@RequestParam(defaultValue = "ALL") final String type) {
+    public WebAsyncTask<Map<String, Object>> getSsoSessions(@RequestParam(defaultValue = "ALL") final String type,
+                                                            final HttpServletRequest request,
+                                                            final HttpServletResponse response) {
+        ensureEndpointAccessIsAuthorized(request, response);
 
         final Callable<Map<String, Object>> asyncTask = () -> {
             final Map<String, Object> sessionsMap = new HashMap<>(1);
@@ -222,11 +218,17 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
      * Endpoint for destroying a single SSO Session.
      *
      * @param ticketGrantingTicket the ticket granting ticket
+     * @param request              the request
+     * @param response             the response
      * @return result map
      */
     @PostMapping(value = "/destroySsoSession")
     @ResponseBody
-    public Map<String, Object> destroySsoSession(@RequestParam final String ticketGrantingTicket) {
+    public Map<String, Object> destroySsoSession(@RequestParam final String ticketGrantingTicket,
+                                                 final HttpServletRequest request,
+                                                 final HttpServletResponse response) {
+        ensureEndpointAccessIsAuthorized(request, response);
+
         final Map<String, Object> sessionsMap = new HashMap<>(1);
         try {
             this.centralAuthenticationService.destroyTicketGrantingTicket(ticketGrantingTicket);
@@ -244,27 +246,31 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
     /**
      * Endpoint for destroying SSO Sessions.
      *
-     * @param type the type
+     * @param type     the type
+     * @param request  the request
+     * @param response the response
      * @return result map
      */
     @PostMapping(value = "/destroySsoSessions")
     @ResponseBody
-    public Map<String, Object> destroySsoSessions(@RequestParam(defaultValue = "ALL") final String type) {
+    public Map<String, Object> destroySsoSessions(@RequestParam(defaultValue = "ALL") final String type,
+                                                  final HttpServletRequest request,
+                                                  final HttpServletResponse response) {
+        ensureEndpointAccessIsAuthorized(request, response);
+
         final Map<String, Object> sessionsMap = new HashMap<>();
         final Map<String, String> failedTickets = new HashMap<>();
 
         final SsoSessionReportOptions option = SsoSessionReportOptions.valueOf(type);
         final Collection<Map<String, Object>> collection = getActiveSsoSessions(option);
-        for (final Map<String, Object> sso : collection) {
-            final String ticketGrantingTicket =
-                    sso.get(SsoSessionAttributeKeys.TICKET_GRANTING_TICKET.toString()).toString();
+        collection.stream().map(sso -> sso.get(SsoSessionAttributeKeys.TICKET_GRANTING_TICKET.toString()).toString()).forEach(ticketGrantingTicket -> {
             try {
                 this.centralAuthenticationService.destroyTicketGrantingTicket(ticketGrantingTicket);
             } catch (final Exception e) {
                 LOGGER.error(e.getMessage(), e);
                 failedTickets.put(ticketGrantingTicket, e.getMessage());
             }
-        }
+        });
 
         if (failedTickets.isEmpty()) {
             sessionsMap.put(STATUS, HttpServletResponse.SC_OK);
@@ -278,11 +284,16 @@ public class SingleSignOnSessionsReportController extends AbstractNamedMvcEndpoi
     /**
      * Show sso sessions.
      *
+     * @param request  the request
+     * @param response the response
      * @return the model and view where json data will be rendered
      * @throws Exception thrown during json processing
      */
     @GetMapping
-    public ModelAndView showSsoSessions() throws Exception {
+    public ModelAndView showSsoSessions(final HttpServletRequest request,
+                                        final HttpServletResponse response) throws Exception {
+        ensureEndpointAccessIsAuthorized(request, response);
+
         return new ModelAndView(VIEW_SSO_SESSIONS);
     }
 }

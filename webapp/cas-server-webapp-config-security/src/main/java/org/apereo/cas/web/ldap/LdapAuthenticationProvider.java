@@ -52,12 +52,16 @@ public class LdapAuthenticationProvider implements AuthenticationProvider {
             final String username = authentication.getPrincipal().toString();
             final Object credentials = authentication.getCredentials();
             final String password = credentials == null ? null : credentials.toString();
-            final AuthenticationRequest request = new AuthenticationRequest(username,
-                    new org.ldaptive.Credential(password), ReturnAttributes.ALL.value());
+
+            LOGGER.debug("Preparing LDAP authentication request for user [{}]", username);
+
+            final AuthenticationRequest request = new AuthenticationRequest(username, new org.ldaptive.Credential(password), ReturnAttributes.ALL.value());
             final Authenticator authenticator = Beans.newLdaptiveAuthenticator(adminPagesSecurityProperties.getLdap());
+            LOGGER.debug("Executing LDAP authentication request for user [{}]", username);
+            
             final AuthenticationResponse response = authenticator.authenticate(request);
             LOGGER.debug("LDAP response: [{}]", response);
-
+            
             if (response.getResult()) {
                 final LdapEntry entry = response.getLdapEntry();
 
@@ -67,7 +71,7 @@ public class LdapAuthenticationProvider implements AuthenticationProvider {
 
                 LOGGER.debug("Collected user profile [{}]", profile);
 
-                this.authorizationGenerator.generate(profile);
+                this.authorizationGenerator.generate(WebUtils.getPac4jJ2EContext(), profile);
                 LOGGER.debug("Assembled user profile with roles after generating authorization claims [{}]", profile);
 
                 final Collection<GrantedAuthority> authorities = new ArrayList<>();
@@ -77,16 +81,17 @@ public class LdapAuthenticationProvider implements AuthenticationProvider {
                 final RequireAnyRoleAuthorizer authorizer = new RequireAnyRoleAuthorizer(adminPagesSecurityProperties.getAdminRoles());
                 LOGGER.debug("Executing authorization for expected admin roles [{}]", authorizer.getElements());
 
-                final J2EContext context = new J2EContext(
-                        WebUtils.getHttpServletRequestFromRequestAttributes(),
-                        WebUtils.getHttpServletResponseFromRequestAttributes());
+                final J2EContext context = WebUtils.getPac4jJ2EContext();
 
                 if (authorizer.isAllAuthorized(context, Arrays.asList(profile))) {
                     return new UsernamePasswordAuthenticationToken(username, password, authorities);
                 }
                 LOGGER.warn("User [{}] is not authorized to access the requested resource allowed to roles [{}]",
                         username, authorizer.getElements());
+            } else {
+                LOGGER.warn("LDAP authentication response produced no results for [{}]", username);
             }
+
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
             throw new InsufficientAuthenticationException("Unexpected LDAP error", e);

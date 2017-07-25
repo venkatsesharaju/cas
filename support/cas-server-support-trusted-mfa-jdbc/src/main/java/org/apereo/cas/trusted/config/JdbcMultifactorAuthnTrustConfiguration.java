@@ -48,7 +48,7 @@ public class JdbcMultifactorAuthnTrustConfiguration {
     @RefreshScope
     @Bean
     public DataSource dataSourceMfaTrustedAuthn() {
-        return Beans.newHickariDataSource(casProperties.getAuthn().getMfa().getTrusted().getJpa());
+        return Beans.newDataSource(casProperties.getAuthn().getMfa().getTrusted().getJpa());
     }
 
     @Bean
@@ -68,7 +68,6 @@ public class JdbcMultifactorAuthnTrustConfiguration {
                                 dataSourceMfaTrustedAuthn()),
                         casProperties.getAuthn().getMfa().getTrusted().getJpa());
 
-        bean.getJpaPropertyMap().put("hibernate.enable_lazy_load_no_trans", Boolean.TRUE);
         return bean;
     }
 

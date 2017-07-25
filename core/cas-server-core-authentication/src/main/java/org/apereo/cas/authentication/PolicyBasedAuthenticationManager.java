@@ -1,15 +1,21 @@
 package org.apereo.cas.authentication;
 
-import org.apache.shiro.util.Assert;
 import org.apereo.cas.authentication.policy.AnyAuthenticationPolicy;
 import org.apereo.cas.authentication.principal.NullPrincipal;
 import org.apereo.cas.authentication.principal.PrincipalResolver;
 import org.apereo.cas.services.ServicesManager;
+import org.apereo.cas.support.events.authentication.CasAuthenticationPolicyFailureEvent;
+import org.apereo.cas.support.events.authentication.CasAuthenticationTransactionFailureEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.OrderComparator;
+import org.springframework.util.Assert;
 
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -49,26 +55,26 @@ import java.util.Set;
  */
 public class PolicyBasedAuthenticationManager extends AbstractAuthenticationManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolicyBasedAuthenticationManager.class);
-    
+
     /**
      * Authentication security policy.
      */
-    protected final AuthenticationPolicy authenticationPolicy;
+    protected final Collection<AuthenticationPolicy> authenticationPolicies;
 
     /**
      * Instantiates a new Policy based authentication manager.
      *
      * @param authenticationEventExecutionPlan the execution plan
      * @param authenticationHandlerResolver    the authentication handler resolver
-     * @param authenticationPolicy             the authentication policy
+     * @param authenticationPolicies           the authentication policy
      * @param principalResolutionFatal         the principal resolution fatal
      */
     public PolicyBasedAuthenticationManager(final AuthenticationEventExecutionPlan authenticationEventExecutionPlan,
                                             final AuthenticationHandlerResolver authenticationHandlerResolver,
-                                            final AuthenticationPolicy authenticationPolicy,
+                                            final Collection<AuthenticationPolicy> authenticationPolicies,
                                             final boolean principalResolutionFatal) {
         super(authenticationEventExecutionPlan, authenticationHandlerResolver, principalResolutionFatal);
-        this.authenticationPolicy = authenticationPolicy;
+        this.authenticationPolicies = authenticationPolicies;
     }
 
     /**
@@ -79,7 +85,7 @@ public class PolicyBasedAuthenticationManager extends AbstractAuthenticationMana
      */
     public PolicyBasedAuthenticationManager(final AuthenticationEventExecutionPlan authenticationEventExecutionPlan,
                                             final ServicesManager servicesManager) {
-        this(authenticationEventExecutionPlan, servicesManager, new AnyAuthenticationPolicy(false));
+        this(authenticationEventExecutionPlan, servicesManager, Arrays.asList(new AnyAuthenticationPolicy(false)));
     }
 
     /**
@@ -91,9 +97,16 @@ public class PolicyBasedAuthenticationManager extends AbstractAuthenticationMana
      */
     public PolicyBasedAuthenticationManager(final AuthenticationEventExecutionPlan authenticationEventExecutionPlan,
                                             final ServicesManager servicesManager,
+                                            final Collection<AuthenticationPolicy> authenticationPolicy) {
+        super(authenticationEventExecutionPlan, new RegisteredServiceAuthenticationHandlerResolver(servicesManager), false);
+        this.authenticationPolicies = authenticationPolicy;
+    }
+
+    public PolicyBasedAuthenticationManager(final AuthenticationEventExecutionPlan authenticationEventExecutionPlan,
+                                            final ServicesManager servicesManager,
                                             final AuthenticationPolicy authenticationPolicy) {
         super(authenticationEventExecutionPlan, new RegisteredServiceAuthenticationHandlerResolver(servicesManager), false);
-        this.authenticationPolicy = authenticationPolicy;
+        this.authenticationPolicies = Arrays.asList(authenticationPolicy);
     }
 
     @Override
@@ -101,7 +114,7 @@ public class PolicyBasedAuthenticationManager extends AbstractAuthenticationMana
         final Collection<Credential> credentials = transaction.getCredentials();
         final AuthenticationBuilder builder = new DefaultAuthenticationBuilder(NullPrincipal.getInstance());
         credentials.stream().forEach(cred -> builder.addCredential(new BasicCredentialMetaData(cred)));
-        
+
         final Set<AuthenticationHandler> handlerSet = getAuthenticationHandlersForThisTransaction(transaction);
         Assert.notNull(handlerSet, "Resolved authentication handlers for this transaction cannot be null");
         if (handlerSet.isEmpty()) {
@@ -114,7 +127,7 @@ public class PolicyBasedAuthenticationManager extends AbstractAuthenticationMana
                         try {
                             final PrincipalResolver resolver = getPrincipalResolverLinkedToHandlerIfAny(handler, transaction);
                             authenticateAndResolvePrincipal(builder, credential, resolver, handler);
-                            return this.authenticationPolicy.isSatisfiedBy(builder.build());
+                            return this.authenticationPolicies.stream().allMatch(p -> p.isSatisfiedBy(builder.build()));
                         } catch (final GeneralSecurityException e) {
                             LOGGER.info("[{}] failed authenticating [{}]", handler.getName(), credential);
                             LOGGER.debug("[{}] exception details: [{}]", handler.getName(), e.getMessage());
@@ -137,27 +150,39 @@ public class PolicyBasedAuthenticationManager extends AbstractAuthenticationMana
         });
 
         if (!success) {
-            evaluateProducedAuthenticationContext(builder);
+            evaluateProducedAuthenticationContext(builder, transaction);
         }
 
         return builder;
     }
-    
+
 
     /**
      * Evaluate produced authentication context.
      * We apply an implicit security policy of at least one successful authentication.
      * Then, we apply the configured security policy.
      *
-     * @param builder the builder
+     * @param builder     the builder
+     * @param transaction the transaction
      * @throws AuthenticationException the authentication exception
      */
-    protected void evaluateProducedAuthenticationContext(final AuthenticationBuilder builder) throws AuthenticationException {
+    protected void evaluateProducedAuthenticationContext(final AuthenticationBuilder builder,
+                                                         final AuthenticationTransaction transaction) throws AuthenticationException {
         if (builder.getSuccesses().isEmpty()) {
+            publishEvent(new CasAuthenticationTransactionFailureEvent(this, builder.getFailures(), transaction.getCredentials()));
             throw new AuthenticationException(builder.getFailures(), builder.getSuccesses());
         }
-        LOGGER.debug("Executing authentication policy [{}]", this.authenticationPolicy);
-        if (!this.authenticationPolicy.isSatisfiedBy(builder.build())) {
+
+        final Authentication authentication = builder.build();
+        final List<AuthenticationPolicy> policies = new ArrayList<>(this.authenticationPolicies);
+        OrderComparator.sort(policies);
+        final boolean result = policies.stream().allMatch(p -> {
+            LOGGER.debug("Executing authentication policy [{}]", p.getClass().getSimpleName());
+            return p.isSatisfiedBy(authentication);
+        });
+
+        if (!result) {
+            publishEvent(new CasAuthenticationPolicyFailureEvent(this, builder.getFailures(), transaction, authentication));
             throw new AuthenticationException(builder.getFailures(), builder.getSuccesses());
         }
     }

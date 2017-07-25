@@ -8,6 +8,7 @@ import org.apereo.cas.config.CasCoreAuthenticationHandlersConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationMetadataConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationPolicyConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationPrincipalConfiguration;
+import org.apereo.cas.config.CasCoreAuthenticationServiceSelectionStrategyConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
 import org.apereo.cas.config.CasCoreConfiguration;
 import org.apereo.cas.config.CasCoreHttpConfiguration;
@@ -18,28 +19,33 @@ import org.apereo.cas.config.CasCoreUtilConfiguration;
 import org.apereo.cas.config.CasCoreWebConfiguration;
 import org.apereo.cas.config.CasDefaultServiceTicketIdGeneratorsConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
+import org.apereo.cas.config.CasCoreTicketCatalogConfiguration;
 import org.apereo.cas.config.CasTestAuthenticationEventExecutionPlanConfiguration;
 import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
+import org.apereo.cas.config.support.EnvironmentConversionServiceInitializer;
 import org.apereo.cas.logout.config.CasCoreLogoutConfiguration;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
+import org.apereo.cas.util.SchedulingUtils;
 import org.apereo.cas.validation.config.CasCoreValidationConfiguration;
 import org.apereo.cas.web.config.CasCookieConfiguration;
 import org.apereo.cas.web.flow.config.CasCoreWebflowConfiguration;
 import org.apereo.cas.web.support.ArgumentExtractor;
 import org.junit.runner.RunWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.cloud.autoconfigure.RefreshAutoConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
+
+import javax.annotation.PostConstruct;
 
 /**
  * @author Scott Battaglia
@@ -47,6 +53,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  */
 @SpringBootTest(
         classes = {
+                AbstractCentralAuthenticationServiceTests.CasTestConfiguration.class,
                 CasTestAuthenticationEventExecutionPlanConfiguration.class,
                 CasCoreServicesConfiguration.class,
                 CasWebApplicationServiceFactoryConfiguration.class,
@@ -61,7 +68,9 @@ import org.springframework.test.context.junit4.SpringRunner;
                 CasCoreAuthenticationHandlersConfiguration.class,
                 CasCoreHttpConfiguration.class,
                 CasCoreConfiguration.class,
+                CasCoreAuthenticationServiceSelectionStrategyConfiguration.class,
                 CasCoreTicketsConfiguration.class,
+                CasCoreTicketCatalogConfiguration.class,
                 CasCookieConfiguration.class,
                 CasCoreWebConfiguration.class,
                 CasCoreLogoutConfiguration.class,
@@ -71,14 +80,12 @@ import org.springframework.test.context.junit4.SpringRunner;
                 AopAutoConfiguration.class,
                 CasCoreWebflowConfiguration.class,
                 CasCoreValidationConfiguration.class})
-@ContextConfiguration(locations = {"classpath:/core-context.xml"})
+@ContextConfiguration(locations = {"classpath:/core-context.xml"}, initializers = EnvironmentConversionServiceInitializer.class)
 @RunWith(SpringRunner.class)
 @EnableAspectJAutoProxy
 @TestPropertySource(locations = {"classpath:/core.properties"})
 public abstract class AbstractCentralAuthenticationServiceTests {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCentralAuthenticationServiceTests.class);
-    
     @Autowired
     private CentralAuthenticationService centralAuthenticationService;
 
@@ -99,7 +106,7 @@ public abstract class AbstractCentralAuthenticationServiceTests {
 
     @Autowired
     private WebApplicationServiceFactory webApplicationServiceFactory;
-    
+
     @Autowired
     @Qualifier("defaultAuthenticationSystemSupport")
     private AuthenticationSystemSupport authenticationSystemSupport;
@@ -139,6 +146,15 @@ public abstract class AbstractCentralAuthenticationServiceTests {
     public WebApplicationServiceFactory getWebApplicationServiceFactory() {
         return webApplicationServiceFactory;
     }
-    
 
+    @TestConfiguration
+    public static class CasTestConfiguration {
+        @Autowired
+        protected ApplicationContext applicationContext;
+
+        @PostConstruct
+        public void init() {
+            SchedulingUtils.prepScheduledAnnotationBeanPostProcessor(applicationContext);
+        }
+    }
 }

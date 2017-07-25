@@ -10,7 +10,6 @@ import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.logout.LogoutManager;
 import org.apereo.cas.ticket.registry.MemCacheTicketRegistry;
-import org.apereo.cas.ticket.registry.NoOpLockingStrategy;
 import org.apereo.cas.ticket.registry.NoOpTicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistryCleaner;
@@ -61,18 +60,15 @@ public class MemcachedTicketRegistryConfiguration {
     }
 
     @Autowired
-    @Bean(name = {"memcachedTicketRegistry", "ticketRegistry"})
-    public TicketRegistry memcachedTicketRegistry(@Qualifier("memcachedClient") final MemcachedClientIF memcachedClientIF) {
+    @Bean
+    public TicketRegistry ticketRegistry(@Qualifier("memcachedClient") final MemcachedClientIF memcachedClientIF) {
         final MemCacheTicketRegistry registry = new MemCacheTicketRegistry(memcachedClientIF);
         registry.setCipherExecutor(Beans.newTicketRegistryCipherExecutor(casProperties.getTicket().getRegistry().getMemcached().getCrypto()));
         return registry;
     }
 
     @Bean
-    public TicketRegistryCleaner ticketRegistryCleaner(@Qualifier("memcachedClient") final MemcachedClientIF memcachedClientIF) {
-        return new NoOpTicketRegistryCleaner(new NoOpLockingStrategy(),
-                logoutManager,
-                memcachedTicketRegistry(memcachedClientIF),
-                false);
+    public TicketRegistryCleaner ticketRegistryCleaner() {
+        return new NoOpTicketRegistryCleaner();
     }
 }

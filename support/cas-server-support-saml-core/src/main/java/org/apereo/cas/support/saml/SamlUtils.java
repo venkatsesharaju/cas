@@ -40,7 +40,8 @@ import java.util.List;
  * @since 5.0.0
  */
 public final class SamlUtils {
-    private static Logger LOGGER = LoggerFactory.getLogger(SamlUtils.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SamlUtils.class);
 
     private SamlUtils() {
     }
@@ -185,6 +186,6 @@ public final class SamlUtils {
      * @throws SamlException the saml exception
      */
     public static void logSamlObject(final OpenSamlConfigBean configBean, final XMLObject samlObject) throws SamlException {
-        LOGGER.debug("Logging [{}]\n[{}]", samlObject.getClass().getName(), transformSamlObject(configBean, samlObject));
+        LOGGER.debug("Logging [{}]\n\n[{}]", samlObject.getClass().getName(), transformSamlObject(configBean, samlObject));
     }
 }

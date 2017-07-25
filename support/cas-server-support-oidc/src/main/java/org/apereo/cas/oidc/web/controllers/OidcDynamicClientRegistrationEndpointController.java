@@ -12,12 +12,14 @@ import org.apereo.cas.services.OidcRegisteredService;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.support.oauth.OAuth20GrantTypes;
 import org.apereo.cas.support.oauth.OAuth20ResponseTypes;
+import org.apereo.cas.support.oauth.profile.OAuth20ProfileScopeToAttributesFilter;
 import org.apereo.cas.support.oauth.validator.OAuth20Validator;
-import org.apereo.cas.support.oauth.web.BaseOAuthWrapperController;
+import org.apereo.cas.support.oauth.web.endpoints.BaseOAuth20Controller;
 import org.apereo.cas.ticket.accesstoken.AccessTokenFactory;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.util.gen.RandomStringGenerator;
 import org.apereo.cas.util.serialization.StringSerializer;
+import org.apereo.cas.web.support.CookieRetrievingCookieGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,7 +33,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * This is {@link OidcDynamicClientRegistrationEndpointController}.
@@ -39,12 +45,12 @@ import java.util.Map;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
-public class OidcDynamicClientRegistrationEndpointController extends BaseOAuthWrapperController {
+public class OidcDynamicClientRegistrationEndpointController extends BaseOAuth20Controller {
     private static final Logger LOGGER = LoggerFactory.getLogger(OidcDynamicClientRegistrationEndpointController.class);
 
-    private StringSerializer<OidcClientRegistrationRequest> clientRegistrationRequestSerializer;
-    private RandomStringGenerator clientIdGenerator;
-    private RandomStringGenerator clientSecretGenerator;
+    private final StringSerializer<OidcClientRegistrationRequest> clientRegistrationRequestSerializer;
+    private final RandomStringGenerator clientIdGenerator;
+    private final RandomStringGenerator clientSecretGenerator;
 
     public OidcDynamicClientRegistrationEndpointController(final ServicesManager servicesManager,
                                                            final TicketRegistry ticketRegistry,
@@ -55,9 +61,12 @@ public class OidcDynamicClientRegistrationEndpointController extends BaseOAuthWr
                                                            final StringSerializer<OidcClientRegistrationRequest> clientRegistrationRequestSerializer,
                                                            final RandomStringGenerator clientIdGenerator,
                                                            final RandomStringGenerator clientSecretGenerator,
-                                                           final CasConfigurationProperties casProperties) {
+                                                           final OAuth20ProfileScopeToAttributesFilter scopeToAttributesFilter,
+                                                           final CasConfigurationProperties casProperties,
+                                                           final CookieRetrievingCookieGenerator ticketGrantingTicketCookieGenerator) {
         super(servicesManager, ticketRegistry, validator, accessTokenFactory,
-                principalFactory, webApplicationServiceServiceFactory, casProperties);
+                principalFactory, webApplicationServiceServiceFactory,
+                scopeToAttributesFilter, casProperties, ticketGrantingTicketCookieGenerator);
         this.clientRegistrationRequestSerializer = clientRegistrationRequestSerializer;
         this.clientIdGenerator = clientIdGenerator;
         this.clientSecretGenerator = clientSecretGenerator;
@@ -81,9 +90,15 @@ public class OidcDynamicClientRegistrationEndpointController extends BaseOAuthWr
             final OidcClientRegistrationRequest registrationRequest = this.clientRegistrationRequestSerializer.from(jsonInput);
             LOGGER.debug("Received client registration request [{}]", registrationRequest);
 
+            if (registrationRequest.getScopes().isEmpty()) {
+                throw new Exception("Registration request does not contain any scope values");
+            }
+            if (!registrationRequest.getScope().contains(OidcConstants.OPENID)) {
+                throw new Exception("Registration request scopes do not contain [{}]" + OidcConstants.OPENID);
+            }
+
             final OidcRegisteredService registeredService = new OidcRegisteredService();
             registeredService.setName(registrationRequest.getClientName());
-            registeredService.setGenerateRefreshToken(true);
 
             if (StringUtils.isNotBlank(registrationRequest.getJwksUri())) {
                 registeredService.setJwks(registrationRequest.getJwksUri());
@@ -96,14 +111,24 @@ public class OidcDynamicClientRegistrationEndpointController extends BaseOAuthWr
             registeredService.setClientSecret(clientSecretGenerator.getNewString());
             registeredService.setEvaluationOrder(Integer.MIN_VALUE);
 
+            final Set<String> supportedScopes = new HashSet<>(casProperties.getAuthn().getOidc().getScopes());
+            supportedScopes.retainAll(registrationRequest.getScopes());
+
             final OidcClientRegistrationResponse clientResponse = getClientRegistrationResponse(registrationRequest, registeredService);
+            registeredService.setScopes(supportedScopes);
+            final Set<String> processedScopes = new LinkedHashSet<>(supportedScopes);
+            registeredService.setScopes(processedScopes);
             registeredService.setDescription("Dynamically registered service "
                     .concat(registeredService.getName())
                     .concat(" with grant types ")
-                    .concat(clientResponse.getGrantTypes().toString())
+                    .concat(clientResponse.getGrantTypes().stream().collect(Collectors.joining(",")))
+                    .concat(" and with scopes ")
+                    .concat(registeredService.getScopes().stream().collect(Collectors.joining(",")))
                     .concat(" and response types ")
-                    .concat(clientResponse.getResponseTypes().toString()));
-            getServicesManager().save(registeredService);
+                    .concat(clientResponse.getResponseTypes().stream().collect(Collectors.joining(","))));
+            registeredService.setDynamicallyRegistered(true);
+            scopeToAttributesFilter.reconcile(registeredService);
+
             return new ResponseEntity<>(clientResponse, HttpStatus.CREATED);
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);

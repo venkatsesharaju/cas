@@ -43,7 +43,7 @@ import java.util.Set;
         columnDefinition = "VARCHAR(15) DEFAULT 'ant'")
 @Table(name = "RegexRegisteredService")
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
-public abstract class AbstractRegisteredService implements RegisteredService, Comparable<RegisteredService> {
+public abstract class AbstractRegisteredService implements RegisteredService {
 
     private static final long serialVersionUID = 7645279151115635245L;
 
@@ -71,47 +71,29 @@ public abstract class AbstractRegisteredService implements RegisteredService, Co
 
     @Column(length = 255, updatable = true, insertable = true, nullable = true)
     private String description;
-
-    /**
-     * Proxy policy for the service.
-     * By default, the policy is {@link RefuseRegisteredServiceProxyPolicy}.
-     */
+    
     @Lob
     @Column(name = "proxy_policy", nullable = true, length = Integer.MAX_VALUE)
     private RegisteredServiceProxyPolicy proxyPolicy = new RefuseRegisteredServiceProxyPolicy();
 
     @Column(name = "evaluation_order", nullable = false)
     private int evaluationOrder;
-
-    /**
-     * Resolve the username for this service.
-     * By default the resolver is {@link DefaultRegisteredServiceUsernameProvider}.
-     */
+    
     @Lob
     @Column(name = "username_attr", nullable = true, length = Integer.MAX_VALUE)
     private RegisteredServiceUsernameAttributeProvider usernameAttributeProvider = new DefaultRegisteredServiceUsernameProvider();
-
-    /**
-     * The logout type of the service.
-     * The default logout type is the back channel one.
-     */
+    
     @Column(name = "logout_type", nullable = true)
     private LogoutType logoutType = LogoutType.BACK_CHANNEL;
 
     @Lob
     @Column(name = "required_handlers", length = Integer.MAX_VALUE)
     private HashSet<String> requiredHandlers = new HashSet<>();
-
-    /**
-     * The attribute filtering policy.
-     */
+    
     @Lob
     @Column(name = "attribute_release", nullable = true, length = Integer.MAX_VALUE)
     private RegisteredServiceAttributeReleasePolicy attributeReleasePolicy = new ReturnAllowedAttributeReleasePolicy();
-
-    /**
-     * The mfa policy.
-     */
+    
     @Lob
     @Column(name = "mfa_policy", nullable = true, length = Integer.MAX_VALUE)
     private RegisteredServiceMultifactorPolicy multifactorPolicy = new DefaultRegisteredServiceMultifactorPolicy();

@@ -1,13 +1,18 @@
 package org.apereo.cas.config;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.CipherExecutor;
+import org.apereo.cas.authentication.PseudoPlatformTransactionManager;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.core.ticket.TicketGrantingTicketProperties;
 import org.apereo.cas.configuration.model.core.ticket.registry.TicketRegistryProperties;
 import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.logout.LogoutManager;
+import org.apereo.cas.ticket.DefaultTicketCatalog;
 import org.apereo.cas.ticket.ExpirationPolicy;
 import org.apereo.cas.ticket.ServiceTicketFactory;
+import org.apereo.cas.ticket.TicketCatalog;
+import org.apereo.cas.ticket.TicketCatalogConfigurer;
 import org.apereo.cas.ticket.TicketFactory;
 import org.apereo.cas.ticket.TicketGrantingTicketFactory;
 import org.apereo.cas.ticket.UniqueTicketIdGenerator;
@@ -22,11 +27,9 @@ import org.apereo.cas.ticket.proxy.ProxyTicketFactory;
 import org.apereo.cas.ticket.proxy.support.Cas10ProxyHandler;
 import org.apereo.cas.ticket.proxy.support.Cas20ProxyHandler;
 import org.apereo.cas.ticket.registry.DefaultTicketRegistry;
-import org.apereo.cas.ticket.registry.DefaultTicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.DefaultTicketRegistrySupport;
 import org.apereo.cas.ticket.registry.NoOpLockingStrategy;
 import org.apereo.cas.ticket.registry.TicketRegistry;
-import org.apereo.cas.ticket.registry.TicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
 import org.apereo.cas.ticket.registry.support.LockingStrategy;
 import org.apereo.cas.ticket.support.AlwaysExpiresExpirationPolicy;
@@ -52,13 +55,13 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.integration.transaction.PseudoTransactionManager;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -176,8 +179,10 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
 
     @ConditionalOnMissingBean(name = "ticketRegistry")
     @RefreshScope
-    @Bean(name = {"defaultTicketRegistry", "ticketRegistry"})
-    public TicketRegistry defaultTicketRegistry() {
+    @Bean
+    public TicketRegistry ticketRegistry() {
+        LOGGER.warn("Runtime memory is used as the persistence storage for retrieving and managing tickets. "
+                + "Tickets that are issued during runtime will be LOST upon container restarts. This MAY impact SSO functionality.");
         final TicketRegistryProperties.InMemory mem = casProperties.getTicket().getRegistry().getInMemory();
         return new DefaultTicketRegistry(
                 mem.getInitialCapacity(),
@@ -227,18 +232,11 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
     public LockingStrategy lockingStrategy() {
         return new NoOpLockingStrategy();
     }
-
-    @ConditionalOnMissingBean(name = "ticketRegistryCleaner")
-    @Bean
-    public TicketRegistryCleaner ticketRegistryCleaner() {
-        final boolean isCleanerEnabled = casProperties.getTicket().getRegistry().getCleaner().isEnabled();
-        return new DefaultTicketRegistryCleaner(lockingStrategy(), logoutManager, ticketRegistry, isCleanerEnabled);
-    }
-
+    
     @ConditionalOnMissingBean(name = "ticketTransactionManager")
     @Bean
     public PlatformTransactionManager ticketTransactionManager() {
-        return new PseudoTransactionManager();
+        return new PseudoPlatformTransactionManager();
     }
 
     @RefreshScope
@@ -294,5 +292,18 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
     @Override
     public PlatformTransactionManager annotationDrivenTransactionManager() {
         return ticketTransactionManager();
+    }
+
+    @ConditionalOnMissingBean(name = "ticketCatalog")
+    @Autowired
+    @Bean
+    public TicketCatalog ticketCatalog(final List<TicketCatalogConfigurer> configurers) {
+        final DefaultTicketCatalog plan = new DefaultTicketCatalog();
+        configurers.forEach(c -> {
+            final String name = StringUtils.removePattern(c.getClass().getSimpleName(), "\\$.+");
+            LOGGER.debug("Configuring ticket metadata registration plan [{}]", name);
+            c.configureTicketCatalog(plan);
+        });
+        return plan;
     }
 }

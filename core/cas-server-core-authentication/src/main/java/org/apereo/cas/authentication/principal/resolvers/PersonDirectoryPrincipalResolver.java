@@ -3,6 +3,7 @@ package org.apereo.cas.authentication.principal.resolvers;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.handler.PrincipalNameTransformer;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
@@ -32,7 +33,7 @@ import java.util.Map;
 public class PersonDirectoryPrincipalResolver implements PrincipalResolver {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PersonDirectoryPrincipalResolver.class);
-    
+
     /**
      * Repository of principal attributes to be retrieved.
      */
@@ -64,11 +65,11 @@ public class PersonDirectoryPrincipalResolver implements PrincipalResolver {
     public void setReturnNullIfNoAttributes(final boolean returnNullIfNoAttributes) {
         this.returnNullIfNoAttributes = returnNullIfNoAttributes;
     }
-    
+
     public void setPrincipalAttributeName(final String attribute) {
         this.principalAttributeName = attribute;
     }
-    
+
     public void setPrincipalFactory(final PrincipalFactory principalFactory) {
         this.principalFactory = principalFactory;
     }
@@ -79,19 +80,18 @@ public class PersonDirectoryPrincipalResolver implements PrincipalResolver {
     }
 
     @Override
-    public Principal resolve(final Credential credential, final Principal currentPrincipal) {
+    public Principal resolve(final Credential credential, final Principal currentPrincipal, final AuthenticationHandler handler) {
         LOGGER.debug("Attempting to resolve a principal...");
+        String principalId = extractPrincipalId(credential, currentPrincipal);
+        if (principalNameTransformer != null) {
+            principalId = principalNameTransformer.transform(principalId);
+        }
 
-        String principalId = extractPrincipalId(credential);
         if (StringUtils.isBlank(principalId)) {
             LOGGER.debug("Principal id [{}] could not be found", principalId);
             return null;
         }
 
-        if (principalNameTransformer != null) {
-            principalId = principalNameTransformer.transform(principalId);
-        }
-        
         LOGGER.debug("Creating principal for [{}]", principalId);
         final Map<String, List<Object>> attributes = retrievePersonAttributes(principalId, credential);
 
@@ -173,13 +173,14 @@ public class PersonDirectoryPrincipalResolver implements PrincipalResolver {
      * Extracts the id of the user from the provided credential. This method should be overridden by subclasses to
      * achieve more sophisticated strategies for producing a principal ID from a credential.
      *
-     * @param credential the credential provided by the user.
+     * @param credential       the credential provided by the user.
+     * @param currentPrincipal the current principal
      * @return the username, or null if it could not be resolved.
      */
-    protected String extractPrincipalId(final Credential credential) {
+    protected String extractPrincipalId(final Credential credential, final Principal currentPrincipal) {
         return credential.getId();
     }
-    
+
     @Override
     public String toString() {
         return new ToStringBuilder(this)

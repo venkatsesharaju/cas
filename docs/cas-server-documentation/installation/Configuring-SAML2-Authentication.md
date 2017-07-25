@@ -7,6 +7,8 @@ title: CAS - SAML2 Authentication
 
 CAS can act as a SAML2 identity provider accepting authentication requests and producing SAML assertions.
 
+If you intend to allow CAS to delegate authentication to an external SAML2 identity provider, you need to [review this guide](../integration/Delegate-Authentication.html).
+
 <div class="alert alert-info"><strong>SAML Specification</strong><p>This document solely focuses on what one might do to turn on
 SAML2 support inside CAS. It is not to describe/explain the numerous characteristics of the SAML2 protocol itself. If you are unsure about the
 concepts referred to on this page,
@@ -19,13 +21,14 @@ The following CAS endpoints respond to supported SAML2 profiles:
 - `/cas/idp/profile/SAML2/Redirect/SSO`
 - `/cas/idp/profile/SAML2/POST/SSO`
 - `/cas/idp/profile/SAML2/POST/SLO`
+- `/cas/idp/profile/SAML2/Redirect/SLO`
 - `/cas/idp/profile/SAML2/Unsolicited/SSO`
 - `/cas/idp/profile/SAML2/SOAP/ECP`
 
-SAML2 IdP `Unsolicited/Initiated` SSO profile supports the following parameters:
+SAML2 IdP `Unsolicited/SSO` profile supports the following parameters:
 
 | Parameter                         | Description
-|-----------------------------------|------------------------------------------
+|-----------------------------------|-----------------------------------------------------------------
 | `providerId`                      | Required. Entity ID of the service provider.
 | `shire`                           | Optional. Response location (ACS URL) of the service provider.
 | `target`                          | Optional. Relay state.
@@ -142,9 +145,6 @@ SAML relying parties and services must be registered within the CAS service regi
 }
 ```
 
-<div class="alert alert-info"><strong>Aggregated Metadata</strong><p>If metadata
-contains data for more than one relying party, (i.e. InCommon) those relying parties need to be defined by their entity id, explicitly via the <code>serviceId</code> field, given the field accepts regular expressions.</p></div>
-
 The following fields are available for SAML services:
 
 | Field                                | Description
@@ -163,6 +163,31 @@ The following fields are available for SAML services:
 | `metadataCriteriaRemoveEmptyEntitiesDescriptors` | Controls whether to keep entities descriptors that contain no entity descriptors. Default is `true`.
 | `metadataCriteriaRemoveRolelessEntityDescriptors` | Controls whether to keep entity descriptors that contain no roles. Default is `true`.
 | `attributeNameFormats` | Map that defines attribute name formats for a given attribute name to be encoded in the SAML response.
+| `nameIdQualifier` | If defined, will overwrite the `NameQualifier` attribute of the produced subject's name id.
+| `serviceProviderNameIdQualifier` | If defined, will overwrite the `SPNameQualifier` attribute of the produced subject's name id.
+
+
+### Metadata Aggregates
+
+CAS services are fundamentally recognized and loaded by service identifiers taught to CAS typically via
+regular expressions. This allows for common groupings of applications and services by
+url patterns (i.e. "Everything that belongs to `example.org` is registered with CAS).
+With aggregated metadata, CAS essentially does double
+authorization checks because it will first attempt to find the entity id
+in its collection of resolved metadata components and then it looks to
+see if that entity id is authorized via the pattern that is assigned to
+that service definition. This means you can do one of several things:
+
+1. Open up the pattern to allow everything that is authorized in the metadata.
+2. Restrict the pattern to only a select few entity ids found in the
+metadata. This is essentially the same thing as defining metadata criteria
+to filter down the list of resolved relying parties and entity ids except that its done
+after the fact once the metadata is fully loaded and parsed.
+3. You can also instruct CAS to filter metadata
+entities by a defined criteria at resolution time when it reads the
+metadata itself. This is essentially the same thing as forcing the pattern
+to match entity ids, except that it's done while CAS is reading the
+metadata and thus load times are improved.
 
 ### Attribute Name Formats
 
@@ -190,7 +215,9 @@ via CAS properties. To see the relevant list of CAS properties, please [review t
 Attribute filtering and release policies are defined per SAML service.
 See [this guide](../integration/Attribute-Release-Policies.html) for more info.
 
-#### InCommon Research and Scholardship
+A few additional policies specific to SAML services are also provided below.
+
+#### InCommon Research and Scholarship
 
 A specific attribute release policy is available to release the [attribute bundles](https://spaces.internet2.edu/display/InCFederation/Research+and+Scholarship+Attribute+Bundle)
 needed for InCommon's Research and Scholarship service providers:
@@ -205,10 +232,30 @@ needed for InCommon's Research and Scholarship service providers:
   "attributeReleasePolicy": {
     "@class": "org.apereo.cas.services.ChainingAttributeReleasePolicy",
     "policies": [ "java.util.ArrayList",
-      [{
-          "@class": "org.apereo.cas.support.saml.services.InCommonRSAttributeReleasePolicy"
-      }]
+      [
+         {"@class": "org.apereo.cas.support.saml.services.InCommonRSAttributeReleasePolicy"}
+      ]
     ]
+  }
+}
+```
+
+#### Pattern Matching Entity Ids
+
+In the event that an aggregate is defined containing multiple entity ids, the below attribute release policy may be used to release a collection of allowed attributes to entity ids grouped together by a regular expression pattern:
+
+```json
+{
+  "@class": "org.apereo.cas.support.saml.services.SamlRegisteredService",
+  "serviceId": "entity-ids-allowed-via-regex",
+  "name": "SAML",
+  "id": 10,
+  "metadataLocation": "path/to/incommon/metadata.xml",
+  "attributeReleasePolicy": {
+    "@class": "org.apereo.cas.support.saml.services.PatternMatchingEntityIdAttributeReleasePolicy",
+    "allowedAttributes" : [ "java.util.ArrayList", [ "cn", "mail", "sn" ] ],
+    "fullMatch" : "true",
+    "entityIds" : "entityId1|entityId2|somewhere.+"
   }
 }
 ```
@@ -246,6 +293,8 @@ A number of SAML2 service provider integrations are provided natively by CAS. To
 please [review this guide](../integration/Configuring-SAML-SP-Integrations.html).
 
 ## Troubleshooting
+
+To enable additional logging, modify the logging configuration file to add the following:
 
 ```xml
 <AsyncLogger name="org.opensaml" level="debug" additivity="false">

@@ -7,13 +7,11 @@ dependencies {
     compile project(":support:cas-server-support-ldap-core")
     compile project(":core:cas-server-core-configuration")
     compile project(":support:cas-server-support-jpa-util")
-    runtime project(":support:cas-server-support-jdbc-drivers")
+    provided project(":support:cas-server-support-actions")
+    runtimeOnly project(":support:cas-server-support-jdbc-drivers")
 
-    compile libraries.spring
-    compile libraries.springcloud
-    compile libraries.jackson
-    compile libraries.ldaptive
-    compile libraries.hibernate
-    testCompile libraries.tests
-    testCompile project(":core:cas-server-core-services")
+    implementation libraries.ldaptive
+
+    
+    testImplementation project(":core:cas-server-core-services")
 }

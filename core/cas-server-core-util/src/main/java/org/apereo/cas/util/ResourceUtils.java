@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.AbstractResource;
@@ -63,8 +64,15 @@ public final class ResourceUtils {
      * @return the boolean
      */
     public static boolean doesResourceExist(final String resource, final ResourceLoader resourceLoader) {
-        final Resource res = resourceLoader.getResource(resource);
-        return doesResourceExist(res);
+        try {
+            if (StringUtils.isNotBlank(resource)) {
+                final Resource res = resourceLoader.getResource(resource);
+                return doesResourceExist(res);
+            }
+        } catch (final Exception e) {
+            LOGGER.warn(e.getMessage(), e);
+        }
+        return false;
     }
 
     /**
@@ -79,7 +87,7 @@ public final class ResourceUtils {
                 IOUtils.read(res.getInputStream(), new byte[1]);
                 return true;
             } catch (final Exception e) {
-                LOGGER.debug(e.getMessage(), e);
+                LOGGER.trace(e.getMessage(), e);
                 return false;
             }
         }

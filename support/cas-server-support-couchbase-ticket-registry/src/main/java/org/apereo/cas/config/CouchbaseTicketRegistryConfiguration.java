@@ -6,7 +6,6 @@ import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.couchbase.core.CouchbaseClientFactory;
 import org.apereo.cas.logout.LogoutManager;
 import org.apereo.cas.ticket.registry.CouchbaseTicketRegistry;
-import org.apereo.cas.ticket.registry.NoOpLockingStrategy;
 import org.apereo.cas.ticket.registry.NoOpTicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistryCleaner;
@@ -46,8 +45,8 @@ public class CouchbaseTicketRegistryConfiguration {
     }
 
     @RefreshScope
-    @Bean(name = {"couchbaseTicketRegistry", "ticketRegistry"})
-    public TicketRegistry couchbaseTicketRegistry() {
+    @Bean
+    public TicketRegistry ticketRegistry() {
         final CouchbaseTicketRegistryProperties couchbase = casProperties.getTicket().getRegistry().getCouchbase();
         final CouchbaseTicketRegistry c = new CouchbaseTicketRegistry(ticketRegistryCouchbaseClientFactory(), couchbase.isQueryEnabled());
         c.setCipherExecutor(Beans.newTicketRegistryCipherExecutor(couchbase.getCrypto()));
@@ -56,6 +55,6 @@ public class CouchbaseTicketRegistryConfiguration {
 
     @Bean
     public TicketRegistryCleaner ticketRegistryCleaner() {
-        return new NoOpTicketRegistryCleaner(new NoOpLockingStrategy(), logoutManager, couchbaseTicketRegistry(), false);
+        return new NoOpTicketRegistryCleaner();
     }
 }

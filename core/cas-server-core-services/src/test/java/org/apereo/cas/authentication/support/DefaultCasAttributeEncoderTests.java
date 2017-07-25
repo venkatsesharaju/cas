@@ -15,11 +15,13 @@ import org.apereo.cas.config.CasCoreUtilConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.services.RegisteredServiceTestUtils;
+import org.apereo.cas.util.cipher.NoOpCipherExecutor;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.autoconfigure.RefreshAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -47,6 +49,7 @@ import static org.junit.Assert.*;
         CasCoreAuthenticationMetadataConfiguration.class,
         CasCoreAuthenticationSupportConfiguration.class,
         CasCoreAuthenticationHandlersConfiguration.class,
+        RefreshAutoConfiguration.class,
         CasCoreHttpConfiguration.class,
         CasCoreUtilConfiguration.class})
 @ContextConfiguration(locations= {"/services-context.xml"})
@@ -73,7 +76,7 @@ public class DefaultCasAttributeEncoderTests {
     @Test
     public void checkNoPublicKeyDefined() {
         final Service service = RegisteredServiceTestUtils.getService("testDefault");
-        final ProtocolAttributeEncoder encoder = new DefaultCasProtocolAttributeEncoder(this.servicesManager);
+        final ProtocolAttributeEncoder encoder = new DefaultCasProtocolAttributeEncoder(this.servicesManager, NoOpCipherExecutor.getInstance());
         final Map<String, Object> encoded = encoder.encodeAttributes(this.attributes, this.servicesManager.findServiceBy(service));
         assertEquals(encoded.size(), this.attributes.size() - 2);
     }
@@ -81,7 +84,7 @@ public class DefaultCasAttributeEncoderTests {
     @Test
     public void checkAttributesEncodedCorrectly() {
         final Service service = RegisteredServiceTestUtils.getService("testencryption");
-        final ProtocolAttributeEncoder encoder = new DefaultCasProtocolAttributeEncoder(this.servicesManager);
+        final ProtocolAttributeEncoder encoder = new DefaultCasProtocolAttributeEncoder(this.servicesManager, NoOpCipherExecutor.getInstance());
         final Map<String, Object> encoded = encoder.encodeAttributes(this.attributes, this.servicesManager.findServiceBy(service));
         assertEquals(encoded.size(), this.attributes.size());
         checkEncryptedValues(CasViewConstants.MODEL_ATTRIBUTE_NAME_PRINCIPAL_CREDENTIAL, encoded);

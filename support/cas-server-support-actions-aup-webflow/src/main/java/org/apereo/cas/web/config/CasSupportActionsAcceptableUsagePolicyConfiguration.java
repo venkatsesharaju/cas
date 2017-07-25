@@ -28,9 +28,6 @@ import org.springframework.webflow.execution.Action;
 public class CasSupportActionsAcceptableUsagePolicyConfiguration {
 
     @Autowired
-    private CasConfigurationProperties casProperties;
-
-    @Autowired
     @Qualifier("loginFlowRegistry")
     private FlowDefinitionRegistry loginFlowDefinitionRegistry;
 
@@ -45,7 +42,7 @@ public class CasSupportActionsAcceptableUsagePolicyConfiguration {
     @Bean
     public Action acceptableUsagePolicyFormAction(@Qualifier("acceptableUsagePolicyRepository")
                                                   final AcceptableUsagePolicyRepository repository) {
-        return new AcceptableUsagePolicyFormAction(repository, ticketRegistrySupport);
+        return new AcceptableUsagePolicyFormAction(repository);
     }
 
     @ConditionalOnMissingBean(name = "acceptableUsagePolicyWebflowConfigurer")
@@ -57,6 +54,6 @@ public class CasSupportActionsAcceptableUsagePolicyConfiguration {
     @ConditionalOnMissingBean(name = "acceptableUsagePolicyRepository")
     @Bean
     public AcceptableUsagePolicyRepository acceptableUsagePolicyRepository() {
-        return new DefaultAcceptableUsagePolicyRepository();
+        return new DefaultAcceptableUsagePolicyRepository(ticketRegistrySupport);
     }
 }

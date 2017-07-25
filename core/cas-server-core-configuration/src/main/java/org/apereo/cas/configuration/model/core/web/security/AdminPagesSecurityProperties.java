@@ -17,7 +17,7 @@ import java.util.List;
  * @since 5.0.0
  */
 public class AdminPagesSecurityProperties {
-    private String ip = "127\\.0\\.0\\.1|0:0:0:0:0:0:0:1";
+    private String ip = "a^";
     private List<String> adminRoles = Arrays.asList("ROLE_ADMIN", "ROLE_ACTUATOR");
     private String loginUrl;
     private String service;
@@ -26,6 +26,15 @@ public class AdminPagesSecurityProperties {
 
     private Jdbc jdbc = new Jdbc();
     private Ldap ldap = new Ldap();
+    private Jaas jaas = new Jaas();
+
+    public Jaas getJaas() {
+        return jaas;
+    }
+
+    public void setJaas(final Jaas jaas) {
+        this.jaas = jaas;
+    }
 
     public Jdbc getJdbc() {
         return jdbc;
@@ -91,6 +100,36 @@ public class AdminPagesSecurityProperties {
         this.ldap = ldap;
     }
 
+    public class Jaas {
+        private Resource loginConfig;
+        private boolean refreshConfigurationOnStartup = true;
+        private String loginContextName;
+
+        public Resource getLoginConfig() {
+            return loginConfig;
+        }
+
+        public void setLoginConfig(final Resource loginConfig) {
+            this.loginConfig = loginConfig;
+        }
+
+        public boolean isRefreshConfigurationOnStartup() {
+            return refreshConfigurationOnStartup;
+        }
+
+        public void setRefreshConfigurationOnStartup(final boolean refreshConfigurationOnStartup) {
+            this.refreshConfigurationOnStartup = refreshConfigurationOnStartup;
+        }
+
+        public String getLoginContextName() {
+            return loginContextName;
+        }
+
+        public void setLoginContextName(final String loginContextName) {
+            this.loginContextName = loginContextName;
+        }
+    }
+    
     public class Ldap extends AbstractLdapAuthenticationProperties {
         @NestedConfigurationProperty
         private LdapAuthorizationProperties ldapAuthz = new LdapAuthorizationProperties();

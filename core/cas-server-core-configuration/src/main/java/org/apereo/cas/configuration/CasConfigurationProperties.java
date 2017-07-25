@@ -23,6 +23,7 @@ import org.apereo.cas.configuration.model.support.analytics.GoogleAnalyticsPrope
 import org.apereo.cas.configuration.model.support.aup.AcceptableUsagePolicyProperties;
 import org.apereo.cas.configuration.model.support.captcha.GoogleRecaptchaProperties;
 import org.apereo.cas.configuration.model.support.clearpass.ClearpassProperties;
+import org.apereo.cas.configuration.model.support.consent.ConsentProperties;
 import org.apereo.cas.configuration.model.support.cookie.TicketGrantingCookieProperties;
 import org.apereo.cas.configuration.model.support.cookie.WarningCookieProperties;
 import org.apereo.cas.configuration.model.support.geo.googlemaps.GoogleMapsProperties;
@@ -34,6 +35,7 @@ import org.apereo.cas.configuration.model.support.saml.mdui.SamlMetadataUIProper
 import org.apereo.cas.configuration.model.support.saml.shibboleth.ShibbolethAttributeResolverProperties;
 import org.apereo.cas.configuration.model.support.saml.sps.SamlServiceProviderProperties;
 import org.apereo.cas.configuration.model.support.scim.ScimProperties;
+import org.apereo.cas.configuration.model.support.sms.ClickatellProperties;
 import org.apereo.cas.configuration.model.support.sms.TextMagicProperties;
 import org.apereo.cas.configuration.model.support.sms.TwillioProperties;
 import org.apereo.cas.configuration.model.support.themes.ThemeProperties;
@@ -53,8 +55,11 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 public class CasConfigurationProperties {
 
     @NestedConfigurationProperty
+    private ConsentProperties consent = new ConsentProperties();
+
+    @NestedConfigurationProperty
     private ScimProperties scim = new ScimProperties();
-    
+
     @NestedConfigurationProperty
     private AuthenticationProperties authn = new AuthenticationProperties();
 
@@ -125,8 +130,11 @@ public class CasConfigurationProperties {
     private TextMagicProperties textMagic = new TextMagicProperties();
 
     @NestedConfigurationProperty
-    private AcceptableUsagePolicyProperties acceptableUsagePolicy = new AcceptableUsagePolicyProperties();
+    private ClickatellProperties clickatell = new ClickatellProperties();
 
+    @NestedConfigurationProperty
+    private AcceptableUsagePolicyProperties acceptableUsagePolicy = new AcceptableUsagePolicyProperties();
+    
     @NestedConfigurationProperty
     private ClearpassProperties clearpass = new ClearpassProperties();
 
@@ -171,6 +179,14 @@ public class CasConfigurationProperties {
 
     @NestedConfigurationProperty
     private WebflowProperties webflow = new WebflowProperties();
+
+    public ConsentProperties getConsent() {
+        return consent;
+    }
+
+    public void setConsent(final ConsentProperties consent) {
+        this.consent = consent;
+    }
 
     public AuditProperties getAudit() {
         return audit;
@@ -490,5 +506,13 @@ public class CasConfigurationProperties {
 
     public void setScim(final ScimProperties scim) {
         this.scim = scim;
+    }
+
+    public ClickatellProperties getClickatell() {
+        return clickatell;
+    }
+
+    public void setClickatell(final ClickatellProperties clickatell) {
+        this.clickatell = clickatell;
     }
 }

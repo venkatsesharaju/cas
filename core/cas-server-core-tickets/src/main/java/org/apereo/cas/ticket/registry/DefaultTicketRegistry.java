@@ -6,9 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -57,18 +55,9 @@ public class DefaultTicketRegistry extends AbstractTicketRegistry {
     @Override
     public void addTicket(final Ticket ticket) {
         Assert.notNull(ticket, "ticket cannot be null");
-
+        final Ticket encTicket = encodeTicket(ticket);
         LOGGER.debug("Added ticket [{}] to registry.", ticket.getId());
-        this.cache.put(ticket.getId(), ticket);
-    }
-
-    /**
-     * Init.
-     */
-    @PostConstruct
-    public void init() {
-        LOGGER.warn("Runtime memory is used as the persistence storage for retrieving and managing tickets. "
-                + "Tickets that are issued during runtime will be LOST upon container restarts. This MAY impact SSO functionality.");
+        this.cache.put(encTicket.getId(), encTicket);
     }
 
     @Override
@@ -94,7 +83,7 @@ public class DefaultTicketRegistry extends AbstractTicketRegistry {
 
     @Override
     public Collection<Ticket> getTickets() {
-        return Collections.unmodifiableCollection(this.cache.values());
+        return decodeTickets(this.cache.values());
     }
 
     @Override

@@ -23,7 +23,7 @@ public abstract class AbstractMultifactorAuthenticationProvider implements Multi
     private static final long serialVersionUID = 4789727148134156909L;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMultifactorAuthenticationProvider.class);
-    
+
     private MultifactorAuthenticationProviderBypass bypassEvaluator;
 
     private String globalFailureMode;
@@ -42,7 +42,6 @@ public abstract class AbstractMultifactorAuthenticationProvider implements Multi
         return this.order;
     }
 
-
     public void setId(final String id) {
         this.id = id;
     }
@@ -56,15 +55,12 @@ public abstract class AbstractMultifactorAuthenticationProvider implements Multi
     }
 
     @Override
-    public final boolean supports(final Event e,
-                                  final Authentication authentication,
-                                  final RegisteredService registeredService) {
+    public final boolean supports(final Event e, final Authentication authentication, final RegisteredService registeredService) {
         if (e == null || !e.getId().matches(getId())) {
             LOGGER.debug("Provided event id [{}] is not applicable to this provider identified by [{}]", e.getId(), getId());
             return false;
         }
-        if (bypassEvaluator != null && !bypassEvaluator.isAuthenticationRequestHonored(
-                authentication, registeredService, this)) {
+        if (bypassEvaluator != null && !bypassEvaluator.isAuthenticationRequestHonored(authentication, registeredService, this)) {
             LOGGER.debug("Request cannot be supported by provider [{}] as it's configured for bypass", getId());
             return false;
         }
@@ -87,9 +83,7 @@ public abstract class AbstractMultifactorAuthenticationProvider implements Multi
      * @param registeredService the registered service
      * @return the boolean
      */
-    protected boolean supportsInternal(final Event e,
-                                       final Authentication authentication,
-                                       final RegisteredService registeredService) {
+    protected boolean supportsInternal(final Event e, final Authentication authentication, final RegisteredService registeredService) {
         return true;
     }
 

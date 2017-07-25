@@ -7,7 +7,6 @@ import org.apereo.cas.support.saml.services.SamlRegisteredService;
 import org.apereo.cas.support.saml.services.idp.metadata.SamlRegisteredServiceServiceProviderMetadataFacade;
 import org.apereo.cas.support.saml.util.AbstractSaml20ObjectBuilder;
 import org.jasig.cas.client.validation.Assertion;
-
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.opensaml.saml.saml2.core.Conditions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,15 +34,27 @@ public class SamlProfileSamlConditionsBuilder extends AbstractSaml20ObjectBuilde
 
     @Override
     public Conditions build(final AuthnRequest authnRequest, final HttpServletRequest request, final HttpServletResponse response,
-                                  final Assertion assertion, final SamlRegisteredService service,
-                                  final SamlRegisteredServiceServiceProviderMetadataFacade adaptor)
+                            final Assertion assertion, final SamlRegisteredService service,
+                            final SamlRegisteredServiceServiceProviderMetadataFacade adaptor,
+                            final String binding)
             throws SamlException {
         return buildConditions(authnRequest, assertion, service, adaptor);
     }
 
-    private Conditions buildConditions(final AuthnRequest authnRequest, final Assertion assertion,
-                                       final SamlRegisteredService service,
-                                       final SamlRegisteredServiceServiceProviderMetadataFacade adaptor) throws SamlException {
+    /**
+     * Build conditions conditions.
+     *
+     * @param authnRequest the authn request
+     * @param assertion    the assertion
+     * @param service      the service
+     * @param adaptor      the adaptor
+     * @return the conditions
+     * @throws SamlException the saml exception
+     */
+    protected Conditions buildConditions(final AuthnRequest authnRequest,
+                                         final Assertion assertion,
+                                         final SamlRegisteredService service,
+                                         final SamlRegisteredServiceServiceProviderMetadataFacade adaptor) throws SamlException {
 
         final ZonedDateTime currentDateTime = ZonedDateTime.now(ZoneOffset.UTC);
         final Conditions conditions = newConditions(currentDateTime,

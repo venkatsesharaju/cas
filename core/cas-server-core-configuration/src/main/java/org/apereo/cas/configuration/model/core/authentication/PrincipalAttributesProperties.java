@@ -27,12 +27,28 @@ public class PrincipalAttributesProperties {
     private String merger = "REPLACE";
 
     private Set<String> defaultAttributesToRelease = new HashSet<>();
-    private Map<String, String> attributes = new HashMap();
-
     private List<Jdbc> jdbc = new ArrayList<>();
     private List<Groovy> groovy = new ArrayList();
     private List<Ldap> ldap = new ArrayList();
     private List<Json> json = new ArrayList();
+    private Stub stub = new Stub();
+    private Grouper grouper = new Grouper();
+
+    public Stub getStub() {
+        return stub;
+    }
+
+    public void setStub(final Stub stub) {
+        this.stub = stub;
+    }
+
+    public Grouper getGrouper() {
+        return grouper;
+    }
+
+    public void setGrouper(final Grouper grouper) {
+        this.grouper = grouper;
+    }
 
     public List<Groovy> getGroovy() {
         return groovy;
@@ -89,15 +105,7 @@ public class PrincipalAttributesProperties {
     public void setJdbc(final List<Jdbc> jdbc) {
         this.jdbc = jdbc;
     }
-
-    public Map<String, String> getAttributes() {
-        return attributes;
-    }
-
-    public void setAttributes(final Map<String, String> attributes) {
-        this.attributes = attributes;
-    }
-
+    
     public Set<String> getDefaultAttributesToRelease() {
         return defaultAttributesToRelease;
     }
@@ -106,6 +114,40 @@ public class PrincipalAttributesProperties {
         this.defaultAttributesToRelease = defaultAttributesToRelease;
     }
 
+    public static class Grouper {
+        private int order;
+        private boolean enabled;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(final boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getOrder() {
+            return order;
+        }
+
+        public void setOrder(final int order) {
+            this.order = order;
+        }
+
+    }
+
+    public static class Stub {
+        private Map<String, String> attributes = new HashMap();
+
+        public Map<String, String> getAttributes() {
+            return attributes;
+        }
+
+        public void setAttributes(final Map<String, String> attributes) {
+            this.attributes = attributes;
+        }
+    }
+    
     public static class Jdbc extends AbstractJpaProperties {
         private String sql;
         private boolean singleRow = true;
@@ -115,7 +157,16 @@ public class PrincipalAttributesProperties {
         private Map<String, String> columnMappings = new HashMap<>();
         private List<String> username = new ArrayList<>();
         private int order;
+        private Map<String, String> attributes = new HashMap();
 
+        public Map<String, String> getAttributes() {
+            return attributes;
+        }
+
+        public void setAttributes(final Map<String, String> attributes) {
+            this.attributes = attributes;
+        }
+        
         public int getOrder() {
             return order;
         }
@@ -219,7 +270,16 @@ public class PrincipalAttributesProperties {
         private String baseDn;
         private String userFilter;
         private int order;
+        private Map<String, String> attributes = new HashMap();
 
+        public Map<String, String> getAttributes() {
+            return attributes;
+        }
+
+        public void setAttributes(final Map<String, String> attributes) {
+            this.attributes = attributes;
+        }
+        
         public int getOrder() {
             return order;
         }

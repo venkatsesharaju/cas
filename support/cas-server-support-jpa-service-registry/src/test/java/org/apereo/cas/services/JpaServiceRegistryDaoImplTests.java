@@ -32,15 +32,13 @@ import static org.junit.Assert.*;
 public class JpaServiceRegistryDaoImplTests {
 
     @Autowired
-    @Qualifier("jpaServiceRegistryDao")
+    @Qualifier("serviceRegistryDao")
     private ServiceRegistryDao dao;
 
     @Before
     public void setUp() {
         final List<RegisteredService> services = this.dao.load();
-        for (final RegisteredService service : services) {
-            this.dao.delete(service);
-        }
+        services.forEach(service -> this.dao.delete(service));
     }
 
     @Test

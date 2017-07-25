@@ -4,7 +4,7 @@ import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.jpa.JpaConfigDataHolder;
 import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.support.events.dao.CasEvent;
-import org.apereo.cas.support.events.dao.CasEventRepository;
+import org.apereo.cas.support.events.CasEventRepository;
 import org.apereo.cas.support.events.jpa.JpaCasEventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,7 +46,7 @@ public class JpaEventsConfiguration {
     @RefreshScope
     @Bean
     public DataSource dataSourceEvent() {
-        return Beans.newHickariDataSource(casProperties.getEvents().getJpa());
+        return Beans.newDataSource(casProperties.getEvents().getJpa());
     }
     
     public String[] jpaEventPackagesToScan() {
@@ -65,7 +65,6 @@ public class JpaEventsConfiguration {
                                 dataSourceEvent()),
                         casProperties.getEvents().getJpa());
 
-        bean.getJpaPropertyMap().put("hibernate.enable_lazy_load_no_trans", Boolean.TRUE);
         return bean;
     }
     

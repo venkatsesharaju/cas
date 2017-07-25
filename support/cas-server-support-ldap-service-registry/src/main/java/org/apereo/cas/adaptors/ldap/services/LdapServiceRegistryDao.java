@@ -36,7 +36,8 @@ public class LdapServiceRegistryDao implements ServiceRegistryDao {
     private final String searchFilter;
     private final String loadFilter;
 
-    public LdapServiceRegistryDao(final ConnectionFactory connectionFactory, final String baseDn, final LdapRegisteredServiceMapper ldapServiceMapper,
+    public LdapServiceRegistryDao(final ConnectionFactory connectionFactory, final String baseDn, 
+                                  final LdapRegisteredServiceMapper ldapServiceMapper,
                                   final LdapServiceRegistryProperties ldapProperties) {
         this.connectionFactory = connectionFactory;
         this.baseDn = baseDn;
@@ -138,10 +139,7 @@ public class LdapServiceRegistryDao implements ServiceRegistryDao {
         try {
             final Response<SearchResult> response = getSearchResultResponse();
             if (LdapUtils.containsResultEntry(response)) {
-                for (final LdapEntry entry : response.getResult().getEntries()) {
-                    final RegisteredService svc = this.ldapServiceMapper.mapToRegisteredService(entry);
-                    list.add(svc);
-                }
+                response.getResult().getEntries().stream().map(this.ldapServiceMapper::mapToRegisteredService).forEach(list::add);
             }
         } catch (final LdapException e) {
             LOGGER.error(e.getMessage(), e);

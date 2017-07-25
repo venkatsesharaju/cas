@@ -7,9 +7,29 @@ title: CAS - Securing Configuration Properties
 
 This document describes how to retrieve and secure CAS configuration and properties.
 
+## Standalone
+
+If you are running CAS in standalone mode without the presence of the configuration server,
+you can take advantage of built-it [Jasypt](http://www.jasypt.org/) functionality to decrypt sensitive CAS settings.
+
+Jasypt supplies command-line tools useful for performing encryption, decryption, etc. In order to use the tools, you should download the Jasypt distribution. Once unzipped, you will find a `jasypt-$VERSION/bin` directory a number of `bat|sh` scripts that you can use for encryption/decryption operations `(encrypt|decrypt).(bat|sh)`.
+
+Encrypted settings need to be placed into CAS configuration files as:
+
+```properties
+cas.something.sensitive={cipher}FKSAJDFGYOS8F7GLHAKERGFHLSAJ
+```
+
+You also need to instruct CAS to use the proper algorithm, decryption key and other relevant parameters
+when attempting to decrypt settings. To see the relevant list of CAS properties for this 
+feature, please [review this guide](Configuration-Properties.html#configuration-security).
+
+
 ## Spring Cloud
 
-Securing CAS settings and decrypting them is entirely handled by the [Spring Cloud](https://github.com/spring-cloud/spring-cloud-config) project.
+Securing CAS settings and decrypting them is entirely handled by
+the [Spring Cloud](https://github.com/spring-cloud/spring-cloud-config) project
+as [described in this guide](Configuration-Server-Management.html).
 
 The CAS configuration server exposes `/encrypt` and `/decrypt` endpoints to support encrypting and decrypting values.
 Both endpoints accept a `POST` payload; you can use `/encrypt` to secure and encrypt settings and place them inside your CAS configuration.
@@ -24,7 +44,7 @@ installed in your JVM version (if it’s not there by default).</p></div>
 To encrypt a given setting, use:
 
 ```bash
-curl https://sso.example.org/cas/configserver/encrypt -d sensitiveValue
+curl https://config.server.endpoint/encrypt -d sensitiveValue
 ```
 
 Then, copy the encrypted setting into your CAS configuration using the method specified below.
@@ -36,9 +56,9 @@ to account for special characters such as <code>+</code>.</p></div>
 If you wish to manually encrypt and decrypt settings to ensure the functionality is sane, use:
 
 ```bash
-export ENCRYPTED=`curl https://sso.example.org/cas/configserver/encrypt -d sensitiveValue | python -c 'import sys,urllib;print urllib.quote(sys.stdin.read().strip())'`
+export ENCRYPTED=`curl https://config.server.endpoint/encrypt -d sensitiveValue | python -c 'import sys,urllib;print urllib.quote(sys.stdin.read().strip())'`
 echo $ENCRYPTED
-curl https://sso.exampple.org/cas/configserver/decrypt -d $ENCRYPTED | python -c 'import sys,urllib;print urllib.quote(sys.stdin.read().strip())'
+curl https://config.server.endpoint/decrypt -d $ENCRYPTED | python -c 'import sys,urllib;print urllib.quote(sys.stdin.read().strip())'
 ```
 
 Properties that are prefixed with `{cipher}` are automatically decrypted by the CAS configuration server at runtime, such as:
@@ -68,7 +88,7 @@ Once vault is accessible and configured inside CAS, support is provided via the 
 ```xml
 <dependency>
      <groupId>org.apereo.cas</groupId>
-     <artifactId>cas-server-core-configuration-vault</artifactId>
+     <artifactId>cas-server-core-configuration-cloud-vault</artifactId>
      <version>${cas.version}</version>
 </dependency>
 ```

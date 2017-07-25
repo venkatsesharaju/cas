@@ -9,7 +9,7 @@ import org.apereo.cas.authentication.AuthenticationTransactionManager;
 import org.apereo.cas.authentication.DefaultAuthenticationEventExecutionPlan;
 import org.apereo.cas.authentication.DefaultAuthenticationTransactionManager;
 import org.apereo.cas.authentication.PolicyBasedAuthenticationManager;
-import org.apereo.cas.config.support.authentication.AuthenticationEventExecutionPlanConfigurer;
+import org.apereo.cas.authentication.AuthenticationEventExecutionPlanConfigurer;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +20,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -33,13 +34,13 @@ import java.util.List;
 @EnableConfigurationProperties(CasConfigurationProperties.class)
 public class CasCoreAuthenticationConfiguration {
     private static final Logger LOGGER = LoggerFactory.getLogger(CasCoreAuthenticationConfiguration.class);
-    
+
     @Autowired
     private CasConfigurationProperties casProperties;
-    
-    @Bean(name = {"defaultAuthenticationTransactionManager", "authenticationTransactionManager"})
-    public AuthenticationTransactionManager defaultAuthenticationTransactionManager(@Qualifier("casAuthenticationManager")
-                                                                                    final AuthenticationManager authenticationManager) {
+
+    @Bean
+    public AuthenticationTransactionManager authenticationTransactionManager(@Qualifier("casAuthenticationManager")
+                                                                             final AuthenticationManager authenticationManager) {
         return new DefaultAuthenticationTransactionManager(authenticationManager);
     }
 
@@ -47,11 +48,11 @@ public class CasCoreAuthenticationConfiguration {
     @Autowired
     @Bean
     public AuthenticationManager casAuthenticationManager(@Qualifier("authenticationPolicy")
-                                                       final AuthenticationPolicy authenticationPolicy,
-                                                       @Qualifier("registeredServiceAuthenticationHandlerResolver")
-                                                       final AuthenticationHandlerResolver registeredServiceAuthenticationHandlerResolver,
-                                                       @Qualifier("authenticationEventExecutionPlan")
-                                                       final AuthenticationEventExecutionPlan authenticationEventExecutionPlan) {
+                                                          final Collection<AuthenticationPolicy> authenticationPolicy,
+                                                          @Qualifier("registeredServiceAuthenticationHandlerResolver")
+                                                          final AuthenticationHandlerResolver registeredServiceAuthenticationHandlerResolver,
+                                                          @Qualifier("authenticationEventExecutionPlan")
+                                                          final AuthenticationEventExecutionPlan authenticationEventExecutionPlan) {
         return new PolicyBasedAuthenticationManager(
                 authenticationEventExecutionPlan,
                 registeredServiceAuthenticationHandlerResolver,
@@ -59,7 +60,7 @@ public class CasCoreAuthenticationConfiguration {
                 casProperties.getPersonDirectory().isPrincipalResolutionFailureFatal()
         );
     }
-    
+
     @ConditionalOnMissingBean(name = "authenticationEventExecutionPlan")
     @Autowired
     @Bean

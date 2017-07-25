@@ -9,13 +9,14 @@ import org.ldaptive.Response;
 import org.ldaptive.SearchExecutor;
 import org.ldaptive.SearchResult;
 import org.pac4j.core.authorization.generator.AuthorizationGenerator;
+import org.pac4j.core.context.WebContext;
 import org.pac4j.core.exception.AccountNotFoundException;
 import org.pac4j.core.profile.CommonProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * This is {@link BaseUseAttributesAuthorizationGenerator}.
@@ -65,13 +66,11 @@ public abstract class BaseUseAttributesAuthorizationGenerator implements Authori
     protected void addProfileRolesFromAttributes(final CommonProfile profile,
                                                  final LdapAttribute ldapAttribute,
                                                  final String prefix) {
-        ldapAttribute.getStringValues().forEach(value -> {
-            profile.addRole(prefix.concat(value.toUpperCase()));
-        });
+        ldapAttribute.getStringValues().forEach(value -> profile.addRole(prefix.concat(value.toUpperCase())));
     }
 
     @Override
-    public void generate(final CommonProfile profile) {
+    public CommonProfile generate(final WebContext context, final CommonProfile profile) {
         Assert.notNull(this.connectionFactory, "connectionFactory must not be null");
         Assert.notNull(this.userSearchExecutor, "userSearchExecutor must not be null");
 
@@ -82,7 +81,7 @@ public abstract class BaseUseAttributesAuthorizationGenerator implements Authori
             final Response<SearchResult> response = this.userSearchExecutor.search(
                     this.connectionFactory,
                     Beans.newLdaptiveSearchFilter(this.userSearchExecutor.getSearchFilter().getFilter(),
-                            Beans.LDAP_SEARCH_FILTER_DEFAULT_PARAM_NAME, Arrays.asList(username)));
+                            Beans.LDAP_SEARCH_FILTER_DEFAULT_PARAM_NAME, Collections.singletonList(username)));
 
             LOGGER.debug("LDAP user search response: [{}]", response);
             userResult = response.getResult();
@@ -96,7 +95,7 @@ public abstract class BaseUseAttributesAuthorizationGenerator implements Authori
             }
 
             final LdapEntry userEntry = userResult.getEntry();
-            generateAuthorizationForLdapEntry(profile, userEntry);
+            return generateAuthorizationForLdapEntry(profile, userEntry);
         } catch (final LdapException e) {
             throw new RuntimeException("LDAP error fetching details for user.", e);
         }
@@ -107,7 +106,9 @@ public abstract class BaseUseAttributesAuthorizationGenerator implements Authori
      *
      * @param profile   the profile
      * @param userEntry the user entry
+     * @return the common profile
      */
-    protected void generateAuthorizationForLdapEntry(final CommonProfile profile, final LdapEntry userEntry) {
+    protected CommonProfile generateAuthorizationForLdapEntry(final CommonProfile profile, final LdapEntry userEntry) {
+        return profile;
     }
 }

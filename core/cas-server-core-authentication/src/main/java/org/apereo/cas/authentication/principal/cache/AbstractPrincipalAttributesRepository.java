@@ -219,7 +219,7 @@ public abstract class AbstractPrincipalAttributesRepository implements Principal
         }
 
         final Map<String, List<Object>> sourceAttributes = retrievePersonAttributesToPrincipalAttributes(p.getId());
-        LOGGER.debug("Found [{}] attributes for principal [[{}]] from the attribute repository.",
+        LOGGER.debug("Found [{}] attributes for principal [{}] from the attribute repository.",
                 sourceAttributes.size(), p.getId());
 
         if (this.mergingStrategy == null || this.mergingStrategy.getAttributeMerger() == null) {
@@ -294,9 +294,8 @@ public abstract class AbstractPrincipalAttributesRepository implements Principal
             final ApplicationContext context = ApplicationContextProvider.getApplicationContext();
             if (context != null) {
                 return context.getBean("attributeRepository", IPersonAttributeDao.class);
-            } else {
-                LOGGER.warn("No application context could be retrieved, so no attribute repository instance can be determined.");
             }
+            LOGGER.warn("No application context could be retrieved, so no attribute repository instance can be determined.");
         }
         return this.attributeRepository;
     }

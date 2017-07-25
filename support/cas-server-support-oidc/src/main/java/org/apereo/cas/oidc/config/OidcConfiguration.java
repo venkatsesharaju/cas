@@ -4,6 +4,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.LoadingCache;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.CentralAuthenticationService;
+import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
+import org.apereo.cas.authentication.AuthenticationServiceSelectionStrategy;
 import org.apereo.cas.authentication.AuthenticationSystemSupport;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
@@ -12,12 +14,16 @@ import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.oidc.OidcProperties;
 import org.apereo.cas.oidc.OidcConstants;
+import org.apereo.cas.oidc.claims.BaseOidcScopeAttributeReleasePolicy;
+import org.apereo.cas.oidc.claims.OidcCustomScopeAttributeReleasePolicy;
 import org.apereo.cas.oidc.discovery.OidcServerDiscoverySettings;
+import org.apereo.cas.oidc.discovery.OidcServerDiscoverySettingsFactory;
 import org.apereo.cas.oidc.dynareg.OidcClientRegistrationRequest;
 import org.apereo.cas.oidc.dynareg.OidcClientRegistrationRequestSerializer;
 import org.apereo.cas.oidc.jwks.OidcDefaultJsonWebKeystoreCacheLoader;
 import org.apereo.cas.oidc.jwks.OidcJsonWebKeystoreGeneratorService;
 import org.apereo.cas.oidc.jwks.OidcServiceJsonWebKeystoreCacheLoader;
+import org.apereo.cas.oidc.profile.OidcProfileScopeToAttributesFilter;
 import org.apereo.cas.oidc.token.OidcIdTokenGeneratorService;
 import org.apereo.cas.oidc.token.OidcIdTokenSigningAndEncryptionService;
 import org.apereo.cas.oidc.util.OidcAuthorizationRequestSupport;
@@ -39,12 +45,12 @@ import org.apereo.cas.oidc.web.flow.OidcWebflowConfigurer;
 import org.apereo.cas.services.MultifactorAuthenticationProviderSelector;
 import org.apereo.cas.services.OidcRegisteredService;
 import org.apereo.cas.services.ServicesManager;
-import org.apereo.cas.support.oauth.OAuth20CasClientRedirectActionBuilder;
-import org.apereo.cas.support.oauth.OAuth20GrantTypes;
-import org.apereo.cas.support.oauth.OAuth20ResponseTypes;
 import org.apereo.cas.support.oauth.authenticator.Authenticators;
+import org.apereo.cas.support.oauth.authenticator.OAuth20CasAuthenticationBuilder;
+import org.apereo.cas.support.oauth.profile.OAuth20ProfileScopeToAttributesFilter;
 import org.apereo.cas.support.oauth.validator.OAuth20Validator;
-import org.apereo.cas.support.oauth.web.AccessTokenResponseGenerator;
+import org.apereo.cas.support.oauth.web.response.OAuth20CasClientRedirectActionBuilder;
+import org.apereo.cas.support.oauth.web.response.accesstoken.AccessTokenResponseGenerator;
 import org.apereo.cas.support.oauth.web.views.ConsentApprovalViewResolver;
 import org.apereo.cas.support.oauth.web.views.OAuth20CallbackAuthorizeViewResolver;
 import org.apereo.cas.ticket.accesstoken.AccessTokenFactory;
@@ -54,7 +60,6 @@ import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
 import org.apereo.cas.util.gen.DefaultRandomStringGenerator;
 import org.apereo.cas.util.serialization.StringSerializer;
-import org.apereo.cas.validation.AuthenticationRequestServiceSelectionStrategy;
 import org.apereo.cas.web.flow.CasWebflowConfigurer;
 import org.apereo.cas.web.flow.authentication.FirstMultifactorAuthenticationProviderSelector;
 import org.apereo.cas.web.flow.resolver.CasDelegatingWebflowEventResolver;
@@ -79,10 +84,8 @@ import org.springframework.webflow.definition.registry.FlowDefinitionRegistry;
 import org.springframework.webflow.engine.builder.support.FlowBuilderServices;
 import org.springframework.webflow.execution.Action;
 
-import javax.annotation.PostConstruct;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -104,12 +107,16 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
 
     @Autowired
     @Qualifier("requiresAuthenticationAccessTokenInterceptor")
-    private HandlerInterceptorAdapter requiresAuthenticationAccessTokenInterceptor;
+    private SecurityInterceptor requiresAuthenticationAccessTokenInterceptor;
 
     @Autowired(required = false)
     @Qualifier("multifactorAuthenticationProviderSelector")
     private MultifactorAuthenticationProviderSelector multifactorAuthenticationProviderSelector =
             new FirstMultifactorAuthenticationProviderSelector();
+
+    @Autowired
+    @Qualifier("oauthCasAuthenticationBuilder")
+    private OAuth20CasAuthenticationBuilder authenticationBuilder;
 
     @Autowired
     @Qualifier("warnCookieGenerator")
@@ -135,12 +142,8 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
     private CentralAuthenticationService centralAuthenticationService;
 
     @Autowired
-    @Qualifier("defaultAuthenticationSystemSupport")
-    private AuthenticationSystemSupport authenticationSystemSupport;
-
-    @Autowired
     @Qualifier("oauth20AuthenticationRequestServiceSelectionStrategy")
-    private AuthenticationRequestServiceSelectionStrategy oauth20AuthenticationRequestServiceSelectionStrategy;
+    private AuthenticationServiceSelectionStrategy oauth20AuthenticationServiceSelectionStrategy;
 
     @Autowired
     private CasConfigurationProperties casProperties;
@@ -182,8 +185,8 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
     private OAuthCodeFactory defaultOAuthCodeFactory;
 
     @Autowired
-    @Qualifier("authenticationRequestServiceSelectionStrategies")
-    private List<AuthenticationRequestServiceSelectionStrategy> authenticationRequestServiceSelectionStrategies;
+    @Qualifier("authenticationServiceSelectionPlan")
+    private AuthenticationServiceSelectionPlan authenticationRequestServiceSelectionStrategies;
 
     @Override
     public void addInterceptors(final InterceptorRegistry registry) {
@@ -192,13 +195,12 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
 
     @Bean
     public ConsentApprovalViewResolver consentApprovalViewResolver() {
-        return new OidcConsentApprovalViewResolver();
+        return new OidcConsentApprovalViewResolver(casProperties);
     }
 
     @Bean
     public OAuth20CallbackAuthorizeViewResolver callbackAuthorizeViewResolver() {
-        return new OidcCallbackAuthorizeViewResolver(oidcAuthorizationRequestSupport(), servicesManager,
-                oidcServerDiscoverySettings());
+        return new OidcCallbackAuthorizeViewResolver(oidcAuthorizationRequestSupport());
     }
 
     @Bean
@@ -237,7 +239,6 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
     @Bean
     @RefreshScope
     public AccessTokenResponseGenerator oidcAccessTokenResponseGenerator() {
-        final OidcProperties oidc = casProperties.getAuthn().getOidc();
         return new OidcAccessTokenResponseGenerator(oidcIdTokenGenerator());
     }
 
@@ -252,13 +253,20 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
         return new DefaultPrincipalFactory();
     }
 
+    @Bean
+    public OAuth20ProfileScopeToAttributesFilter profileScopeToAttributesFilter() {
+        return new OidcProfileScopeToAttributesFilter(oidcPrincipalFactory(), servicesManager,
+                userDefinedScopeBasedAttributeReleasePolicies());
+    }
+
     @RefreshScope
     @Bean
     public OidcAccessTokenEndpointController oidcAccessTokenController() {
         return new OidcAccessTokenEndpointController(
                 servicesManager, ticketRegistry, oAuth20Validator, defaultAccessTokenFactory,
                 oidcPrincipalFactory(), webApplicationServiceFactory, defaultRefreshTokenFactory,
-                oidcAccessTokenResponseGenerator(), casProperties);
+                oidcAccessTokenResponseGenerator(), profileScopeToAttributesFilter(), casProperties,
+                ticketGrantingTicketCookieGenerator, authenticationBuilder, centralAuthenticationService);
     }
 
     @Bean
@@ -274,23 +282,29 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
                 oidcPrincipalFactory(), webApplicationServiceFactory, clientRegistrationRequestSerializer(),
                 new DefaultRandomStringGenerator(),
                 new DefaultRandomStringGenerator(),
-                casProperties);
+                profileScopeToAttributesFilter(),
+                casProperties, ticketGrantingTicketCookieGenerator);
     }
 
     @RefreshScope
     @Bean
     public OidcJwksEndpointController oidcJwksController() {
-        return new OidcJwksEndpointController(servicesManager, ticketRegistry, oAuth20Validator, defaultAccessTokenFactory,
-                oidcPrincipalFactory(), webApplicationServiceFactory, casProperties);
+        return new OidcJwksEndpointController(servicesManager, ticketRegistry, oAuth20Validator,
+                defaultAccessTokenFactory,
+                oidcPrincipalFactory(), webApplicationServiceFactory,
+                profileScopeToAttributesFilter(), casProperties, ticketGrantingTicketCookieGenerator);
     }
 
+    @Autowired
     @RefreshScope
     @Bean
-    public OidcWellKnownEndpointController oidcWellKnownController() {
+    public OidcWellKnownEndpointController oidcWellKnownController(@Qualifier("oidcServerDiscoverySettingsFactory") 
+                                                                       final OidcServerDiscoverySettings discoverySettings) {
         return new OidcWellKnownEndpointController(servicesManager, ticketRegistry,
                 oAuth20Validator, defaultAccessTokenFactory,
                 oidcPrincipalFactory(), webApplicationServiceFactory,
-                oidcServerDiscoverySettings(), casProperties);
+                discoverySettings, profileScopeToAttributesFilter(),
+                casProperties, ticketGrantingTicketCookieGenerator);
     }
 
     @RefreshScope
@@ -299,7 +313,8 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
         return new OidcProfileEndpointController(servicesManager, ticketRegistry, oAuth20Validator,
                 defaultAccessTokenFactory,
                 oidcPrincipalFactory(), webApplicationServiceFactory,
-                casProperties);
+                profileScopeToAttributesFilter(),
+                casProperties, ticketGrantingTicketCookieGenerator);
     }
 
     @RefreshScope
@@ -309,16 +324,21 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
                 ticketRegistry, oAuth20Validator, defaultAccessTokenFactory,
                 oidcPrincipalFactory(), webApplicationServiceFactory, defaultOAuthCodeFactory,
                 consentApprovalViewResolver(), oidcIdTokenGenerator(),
-                casProperties);
+                profileScopeToAttributesFilter(), casProperties, ticketGrantingTicketCookieGenerator,
+                authenticationBuilder);
     }
 
+    @Autowired
     @RefreshScope
     @Bean
-    public CasWebflowEventResolver oidcAuthenticationContextWebflowEventResolver() {
-        return new OidcAuthenticationContextWebflowEventEventResolver(authenticationSystemSupport,
+    public CasWebflowEventResolver oidcAuthenticationContextWebflowEventResolver(@Qualifier("defaultAuthenticationSystemSupport") 
+                                                                                     final AuthenticationSystemSupport authenticationSystemSupport) {
+        final CasWebflowEventResolver r = new OidcAuthenticationContextWebflowEventEventResolver(authenticationSystemSupport,
                 centralAuthenticationService, servicesManager,
                 ticketRegistrySupport, warnCookieGenerator, authenticationRequestServiceSelectionStrategies,
                 multifactorAuthenticationProviderSelector);
+        this.initialAuthenticationAttemptWebflowEventResolver.addDelegate(r);
+        return r;
     }
 
     @Bean
@@ -332,7 +352,7 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
     @ConditionalOnMissingBean(name = "oidcRegisteredServiceUIAction")
     @Bean
     public Action oidcRegisteredServiceUIAction() {
-        return new OidcRegisteredServiceUIAction(this.servicesManager, oauth20AuthenticationRequestServiceSelectionStrategy);
+        return new OidcRegisteredServiceUIAction(this.servicesManager, oauth20AuthenticationServiceSelectionStrategy);
     }
 
     @Bean
@@ -373,31 +393,9 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
         return new OidcServiceJsonWebKeystoreCacheLoader();
     }
 
-    @RefreshScope
     @Bean
-    public OidcServerDiscoverySettings oidcServerDiscoverySettings() {
-        final OidcProperties oidc = casProperties.getAuthn().getOidc();
-        final OidcServerDiscoverySettings discoveryProperties =
-                new OidcServerDiscoverySettings(casProperties.getServer().getPrefix(),
-                        oidc.getIssuer());
-
-        discoveryProperties.setClaimsSupported(oidc.getClaims());
-        discoveryProperties.setScopesSupported(oidc.getScopes());
-        discoveryProperties.setResponseTypesSupported(
-                Arrays.asList(OAuth20ResponseTypes.CODE.getType(),
-                        OAuth20ResponseTypes.TOKEN.getType(),
-                        OAuth20ResponseTypes.IDTOKEN_TOKEN.getType()));
-
-        discoveryProperties.setSubjectTypesSupported(oidc.getSubjectTypes());
-        discoveryProperties.setClaimTypesSupported(Collections.singletonList("normal"));
-
-        discoveryProperties.setGrantTypesSupported(
-                Arrays.asList(OAuth20GrantTypes.AUTHORIZATION_CODE.getType(),
-                        OAuth20GrantTypes.PASSWORD.getType(),
-                        OAuth20GrantTypes.REFRESH_TOKEN.getType()));
-
-        discoveryProperties.setIdTokenSigningAlgValuesSupported(Arrays.asList("none", "RS256"));
-        return discoveryProperties;
+    public OidcServerDiscoverySettingsFactory oidcServerDiscoverySettingsFactory() {
+        return new OidcServerDiscoverySettingsFactory(casProperties);
     }
 
     @Bean
@@ -419,8 +417,14 @@ public class OidcConfiguration extends WebMvcConfigurerAdapter {
                 mode);
     }
 
-    @PostConstruct
-    public void initOidcConfig() {
-        this.initialAuthenticationAttemptWebflowEventResolver.addDelegate(oidcAuthenticationContextWebflowEventResolver());
+    @RefreshScope
+    @Bean
+    public Collection<BaseOidcScopeAttributeReleasePolicy> userDefinedScopeBasedAttributeReleasePolicies() {
+        final OidcProperties oidc = casProperties.getAuthn().getOidc();
+        return oidc.getUserDefinedScopes().entrySet()
+                .stream()
+                .map((k) -> new OidcCustomScopeAttributeReleasePolicy(k.getKey(), Arrays.asList(k.getValue().split(","))))
+                .collect(Collectors.toSet());
     }
+
 }

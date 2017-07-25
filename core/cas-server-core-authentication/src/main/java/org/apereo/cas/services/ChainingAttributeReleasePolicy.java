@@ -1,5 +1,6 @@
 package org.apereo.cas.services;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apereo.cas.authentication.principal.Principal;
 
 import java.util.ArrayList;
@@ -31,5 +32,21 @@ public class ChainingAttributeReleasePolicy implements RegisteredServiceAttribut
         final Map<String, Object> attributes = new HashMap<>();
         policies.forEach(policy -> attributes.putAll(policy.getAttributes(p, service)));
         return attributes;
+    }
+
+    /**
+     * Add policy.
+     *
+     * @param policy the policy
+     */
+    public void addPolicy(final RegisteredServiceAttributeReleasePolicy policy) {
+        this.policies.add(policy);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("policies", policies)
+                .toString();
     }
 }
